@@ -1,13 +1,21 @@
+import Navbar from "@/components/layout/Navbar";
 import Hero from "@/components/landing/Hero";
-import Stats from "@/components/landing/Stats";
-import Feature from "@/components/landing/Feature";
+import Features from "@/components/landing/Features";
+import LiveTournament from "@/components/landing/LiveTournament";
+import LeaderboardPreview from "@/components/landing/LeaderboardPreview";
+import Testimonials from "@/components/landing/Testimonials";
+import Footer from "@/components/layout/Footer";
 
-export default function Home() {
+export default function HomePage() {
   return (
     <>
+      <Navbar />
       <Hero />
-      <Stats />
-      <Feature />
+      <Features />
+      <LiveTournament />
+      <LeaderboardPreview />
+      <Testimonials />
+      <Footer />
     </>
   );
 }
