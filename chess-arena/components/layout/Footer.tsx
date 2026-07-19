@@ -1,30 +1,71 @@
-import Link from "next/link";
+import Container from "@/components/ui/Container";
 
-export default function Footer() {
-  return (
-    <footer className="border-t border-white/10 bg-slate-950 text-white">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 py-10 md:flex-row">
-        <div>
-          <h2 className="text-3xl font-bold text-emerald-400">
-            ChessArena
-          </h2>
 
-          <p className="mt-3 text-gray-400">
-            India's Competitive Chess Platform.
-          </p>
-        </div>
+export default function Footer(){
 
-        <div className="flex gap-8">
-          <Link href="/">Home</Link>
-          <Link href="/tournaments">Tournament</Link>
-          <Link href="/leaderboard">Leaderboard</Link>
-          <Link href="/login">Login</Link>
-        </div>
+return(
 
-        <div className="text-sm text-gray-500">
-          © 2026 ChessArena. All rights reserved.
-        </div>
-      </div>
-    </footer>
-  );
+<footer
+className="
+border-t
+border-white/10
+bg-[#050816]
+py-10
+text-gray-400
+"
+>
+
+
+<Container>
+
+<div className="
+flex
+flex-col
+md:flex-row
+justify-between
+gap-5
+">
+
+
+<div>
+
+<h2 className="
+text-xl
+font-bold
+text-white
+">
+
+ChessArena
+
+</h2>
+
+<p className="mt-2 text-sm">
+
+The ultimate platform for competitive chess tournaments.
+
+</p>
+
+</div>
+
+
+
+<div className="text-sm">
+
+© {new Date().getFullYear()} ChessArena. All rights reserved.
+
+</div>
+
+
+</div>
+
+
+</Container>
+
+
+</footer>
+
+
+)
+
+
 }
