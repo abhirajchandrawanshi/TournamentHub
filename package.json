@@ -16,6 +16,7 @@
     "axios": "^1.18.1",
     "chess.js": "^1.4.0",
     "clsx": "^2.1.1",
+    "firebase": "^12.16.0",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.25.0",
     "next": "^16.2.10",
@@ -24,8 +25,10 @@
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.82.0",
     "tailwind-merge": "^3.6.0",
-    "typescript": "^7.0.2",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
   }
 }

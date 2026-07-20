@@ -1,3 +1,11 @@
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  signOut,
+  sendPasswordResetEmail
+} from "firebase/auth";
+import { auth, googleProvider } from "../lib/firebase";
 import api from "../lib/axios";
 
 import {
@@ -16,32 +24,28 @@ export const authService = {
 
     login: async (
         data: LoginRequest
-    ) => {
-
-        const response =
-            await api.post<AuthResponse>(
-                "/auth/login",
-                data
-            );
-
-        return response.data;
-
+    ): Promise<AuthResponse> => {
+        const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+        const token = await userCredential.user.getIdToken();
+        const response = await api.get<{ user: any }>("/auth/me");
+        return {
+            user: response.data.user,
+            token: token
+        };
     },
 
 
 
     signup: async (
         data: SignupRequest
-    ) => {
-
-        const response =
-            await api.post<AuthResponse>(
-                "/auth/signup",
-                data
-            );
-
-        return response.data;
-
+    ): Promise<AuthResponse> => {
+        const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+        const token = await userCredential.user.getIdToken();
+        const response = await api.get<{ user: any }>("/auth/me");
+        return {
+            user: response.data.user,
+            token: token
+        };
     },
 
 
@@ -49,38 +53,28 @@ export const authService = {
     forgotPassword:
         async (
             data: ForgotPasswordRequest
-        ) => {
-
-            const response =
-                await api.post(
-                    "/auth/forgot-password",
-                    data
-                );
-
-
-            return response.data;
-
+        ): Promise<void> => {
+            await sendPasswordResetEmail(auth, data.email);
         },
 
 
 
     googleLogin:
         async (
-            token: string
-        ) => {
+            _token?: string
+        ): Promise<AuthResponse> => {
+            const userCredential = await signInWithPopup(auth, googleProvider);
+            const token = await userCredential.user.getIdToken();
+            const response = await api.get<{ user: any }>("/auth/me");
+            return {
+                user: response.data.user,
+                token: token
+            };
+        },
 
-            const response =
-                await api.post<AuthResponse>(
-                    "/auth/google",
-                    {
-                        token
-                    }
-                );
-
-
-            return response.data;
-
-        }
+    logout: async (): Promise<void> => {
+        await signOut(auth);
+    }
 
 
 
