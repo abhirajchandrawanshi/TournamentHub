@@ -1,15 +1,21 @@
-import Navbar from "@/components/layout/Navbar";
 import Hero from "@/components/landing/Hero";
+import LiveGames from "@/components/landing/LiveGames";
 import LiveTournament from "@/components/landing/LiveTournament";
-import LeaderboardPreview from "@/components/landing/LeaderboardPreview";
-import Footer from "@/components/layout/Footer";
+import Features from "@/components/landing/Features";
+import Leaderboard from "@/components/landing/Leaderboard";
+import Testimonials from "@/components/landing/Testimonials";
+import CTA from "@/components/landing/CTA";
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[#050816] text-white">
-      <h1 className="text-5xl font-bold">
-        Chess Tournament Platform 🚀
-      </h1>
-    </main>
+    <div className="bg-[#0b0b0b] text-white">
+      <Hero />
+      <LiveGames />
+      <LiveTournament />
+      <Features />
+      <Leaderboard />
+      <Testimonials />
+      <CTA />
+    </div>
   );
 }

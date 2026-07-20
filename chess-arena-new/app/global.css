@@ -47,6 +47,7 @@ button {
 
 .gradient-text {
   background: linear-gradient(90deg, #22c55e, #00d084);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

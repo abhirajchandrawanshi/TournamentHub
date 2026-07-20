@@ -1,46 +1,46 @@
 "use client";
 
+import { motion } from "framer-motion";
+import { Quote } from "lucide-react";
+
+import Card from "@/components/ui/Card";
+import SectionHeading from "@/components/ui/SectionHeading";
+
 const testimonials = [
-  {
-    name: "Aman",
-    role: "Professional Player",
-    text: "ChessArena offers the smoothest online tournament experience I've ever had.",
-  },
-  {
-    name: "Sneha",
-    role: "Organizer",
-    text: "Creating tournaments takes only a few minutes. Everything feels premium.",
-  },
-  {
-    name: "Rohit",
-    role: "Blitz Player",
-    text: "The real-time gameplay and leaderboard system are amazing.",
-  },
+  { name: "Aman", role: "Competitive player", text: "ChessArena feels clean, fast, and professional. It keeps the focus on the match instead of the interface." },
+  { name: "Sneha", role: "Tournament organizer", text: "The layout is simple to scan and the live tournament presentation makes the platform feel premium." },
+  { name: "Rohit", role: "Blitz specialist", text: "The overall design is minimal but not boring. It has the confidence of a real chess product." },
 ];
 
 export default function Testimonials() {
   return (
-    <section className="bg-black py-24 text-white">
-      <div className="mx-auto max-w-7xl px-6">
-        <h2 className="mb-14 text-center text-5xl font-bold">
-          What Our Players Say
-        </h2>
+    <section className="border-t border-white/5 bg-[#090909] py-20 text-white sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          eyebrow="Testimonials"
+          align="center"
+          title={<>Built for players who care about quality.</>}
+          description="Real players want clarity, speed, and trust. This section keeps the message direct and elegant."
+        />
 
-        <div className="grid gap-8 md:grid-cols-3">
-          {testimonials.map((item) => (
-            <div
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
+          {testimonials.map((item, index) => (
+            <motion.div
               key={item.name}
-              className="rounded-2xl border border-white/10 bg-slate-900 p-8"
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.35, delay: index * 0.08 }}
             >
-              <p className="leading-8 text-gray-300">"{item.text}"</p>
-
-              <div className="mt-8">
-                <h4 className="font-bold">{item.name}</h4>
-                <span className="text-sm text-emerald-400">
-                  {item.role}
-                </span>
-              </div>
-            </div>
+              <Card className="h-full p-6">
+                <Quote size={20} className="text-[#81b64c]" />
+                <p className="mt-5 text-sm leading-7 text-slate-300">“{item.text}”</p>
+                <div className="mt-6">
+                  <p className="font-medium text-white">{item.name}</p>
+                  <p className="text-sm text-slate-400">{item.role}</p>
+                </div>
+              </Card>
+            </motion.div>
           ))}
         </div>
       </div>

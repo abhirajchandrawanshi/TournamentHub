@@ -1,100 +1,74 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Calendar, Trophy, Users, ArrowRight } from "lucide-react";
+import { CalendarDays, Clock3, Trophy, Users } from "lucide-react";
+
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import SectionHeading from "@/components/ui/SectionHeading";
 
 const tournaments = [
-  {
-    id: 1,
-    title: "Sunday Blitz Championship",
-    prize: "₹10,000",
-    entry: "₹99",
-    players: 128,
-    status: "LIVE",
-  },
-  {
-    id: 2,
-    title: "Rapid Masters Cup",
-    prize: "₹25,000",
-    entry: "₹199",
-    players: 256,
-    status: "UPCOMING",
-  },
-  {
-    id: 3,
-    title: "Arena Knockout",
-    prize: "₹50,000",
-    entry: "₹499",
-    players: 512,
-    status: "LIVE",
-  },
+  { name: "Blitz Arena", prize: "₹10,000", players: "128 players", time: "10 min", status: "LIVE" },
+  { name: "Rapid Masters", prize: "₹25,000", players: "256 players", time: "Starts in 30m", status: "UPCOMING" },
+  { name: "Classic Knockout", prize: "₹50,000", players: "512 players", time: "30+20", status: "LIVE" },
 ];
 
 export default function LiveTournament() {
   return (
-    <section className="bg-black py-24 text-white">
-      <div className="mx-auto max-w-7xl px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 25 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-12 text-center"
-        >
-          <h2 className="text-4xl font-bold md:text-5xl">
-            Live <span className="text-emerald-400">Tournaments</span>
-          </h2>
+    <section className="border-t border-white/5 bg-[#0b0b0b] py-20 text-white sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          eyebrow="Featured tournament"
+          title={<>A live event surface that stays simple and clear.</>}
+          description="Tournament cards are compact, readable, and optimized for quick scanning across desktop and mobile."
+        />
 
-          <p className="mt-4 text-gray-400">
-            Join ongoing competitions and win exciting rewards.
-          </p>
-        </motion.div>
-
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
           {tournaments.map((item, index) => (
             <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 35 }}
+              key={item.name}
+              initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              className="rounded-2xl border border-white/10 bg-slate-900 p-6 transition hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/10"
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.35, delay: index * 0.08 }}
+              whileHover={{ y: -4, scale: 1.01 }}
             >
-              <div className="mb-5 flex items-center justify-between">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    item.status === "LIVE"
-                      ? "bg-red-500/20 text-red-400"
-                      : "bg-blue-500/20 text-blue-400"
-                  }`}
-                >
-                  {item.status}
-                </span>
-
-                <Calendar className="text-gray-400" size={18} />
-              </div>
-
-              <h3 className="mb-6 text-2xl font-bold">{item.title}</h3>
-
-              <div className="space-y-4 text-gray-300">
-                <div className="flex items-center gap-3">
-                  <Trophy className="text-yellow-400" size={18} />
-                  Prize Pool: <strong>{item.prize}</strong>
+              <Card className="h-full p-6">
+                <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  <span className={`rounded-full px-3 py-1 ${item.status === "LIVE" ? "bg-[#81b64c]/10 text-[#d8f1b9]" : "bg-white/5 text-slate-300"}`}>
+                    {item.status}
+                  </span>
+                  <span className="inline-flex items-center gap-1 normal-case tracking-normal">
+                    <Clock3 size={14} /> {item.time}
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <Users className="text-emerald-400" size={18} />
-                  Players: <strong>{item.players}</strong>
+                <h3 className="mt-6 text-2xl font-semibold text-white">{item.name}</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-400">
+                  A polished event card that keeps key details visible without overwhelming the layout.
+                </p>
+
+                <div className="mt-6 space-y-3 text-sm text-slate-300">
+                  <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
+                    <span className="inline-flex items-center gap-2"><Trophy size={16} className="text-[#81b64c]" /> Prize pool</span>
+                    <strong className="text-white">{item.prize}</strong>
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
+                    <span className="inline-flex items-center gap-2"><Users size={16} className="text-[#81b64c]" /> Players</span>
+                    <strong className="text-white">{item.players}</strong>
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
+                    <span className="inline-flex items-center gap-2"><CalendarDays size={16} className="text-[#81b64c]" /> Format</span>
+                    <strong className="text-white">{item.time}</strong>
+                  </div>
                 </div>
 
-                <div>
-                  Entry Fee: <strong>{item.entry}</strong>
+                <div className="mt-6">
+                  <Button href="/tournament" variant="primary" size="md" className="w-full">
+                    Join event
+                  </Button>
                 </div>
-              </div>
-
-              <button className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 font-semibold transition hover:bg-emerald-600">
-                Join Tournament
-                <ArrowRight size={18} />
-              </button>
+              </Card>
             </motion.div>
           ))}
         </div>
