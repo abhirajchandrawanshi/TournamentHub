@@ -1,3 +1,5 @@
+import Link from "next/dist/client/link";
+
 const ratings = [
   { mode: "Bullet", value: 1842, games: 1204 },
   { mode: "Blitz", value: 1967, games: 3410 },
@@ -33,9 +35,8 @@ export default function DashboardPage() {
             <p className="text-[13px] text-text-muted">Member since Jan 2025 &middot; India</p>
           </div>
           <div className="sm:ml-auto flex gap-2">
-            <button className="btn-outline text-[13px]">Edit profile</button>
-            <button className="btn-primary text-[13px]">Challenge</button>
-          </div>
+           <Link href="/settings" className="btn-outline text-[13px]">Edit profile</Link>
+<Link href="/game" className="btn-primary text-[13px]">Challenge</Link>   </div>
         </div>
 
         {/* Ratings */}
@@ -56,8 +57,9 @@ export default function DashboardPage() {
           </div>
           <div className="divide-y divide-border-soft">
             {recentGames.map((g, i) => (
-              <div
+              <Link
                 key={i}
+                href={`/profile/${g.opponent}`}
                 className="flex items-center justify-between px-4 py-2.5 text-[13px] hover:bg-white/[0.03]"
               >
                 <span className={`w-14 shrink-0 font-semibold ${resultColor(g.result)}`}>
@@ -69,7 +71,7 @@ export default function DashboardPage() {
                   {g.moves} moves
                 </span>
                 <span className="text-text-muted w-16 shrink-0 text-right">{g.when}</span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

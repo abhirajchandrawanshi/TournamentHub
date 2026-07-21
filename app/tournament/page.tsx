@@ -1,15 +1,15 @@
 import Link from "next/link";
 
 const arenaTournaments = [
-  { name: "Eastern SuperBlitz Arena", clock: "3+0", players: 799, starts: "Playing now", live: true },
-  { name: "Hourly Bullet Arena", clock: "1+0", players: 1032, starts: "in 12m", live: false },
-  { name: "Titled Blitz Arena", clock: "3+2", players: 88, starts: "in 3h", live: false },
-  { name: "Daily Rapid Arena", clock: "10+0", players: 340, starts: "in 6h", live: false },
+  { id: "eastern-superblitz", name: "Eastern SuperBlitz Arena", clock: "3+0", players: 799, starts: "Playing now", live: true },
+  { id: "hourly-bullet", name: "Hourly Bullet Arena", clock: "1+0", players: 1032, starts: "in 12m", live: false },
+  { id: "titled-blitz", name: "Titled Blitz Arena", clock: "3+2", players: 88, starts: "in 3h", live: false },
+  { id: "daily-rapid", name: "Daily Rapid Arena", clock: "10+0", players: 340, starts: "in 6h", live: false },
 ];
 
 const swissTournaments = [
-  { name: "Weekly Classical Swiss", clock: "15+10", players: 214, rounds: 7, starts: "in 1h 30m" },
-  { name: "Monthly Rapid Swiss", clock: "10+5", players: 512, rounds: 9, starts: "Tomorrow" },
+  { id: "weekly-classical-swiss", name: "Weekly Classical Swiss", clock: "15+10", players: 214, rounds: 7, starts: "in 1h 30m" },
+  { id: "monthly-rapid-swiss", name: "Monthly Rapid Swiss", clock: "10+5", players: 512, rounds: 9, starts: "Tomorrow" },
 ];
 
 export default function TournamentPage() {
@@ -22,7 +22,9 @@ export default function TournamentPage() {
         </p>
 
         <div className="flex gap-2 mb-6">
-          <button className="btn-primary text-[13px]">Create a tournament</button>
+          <Link href="/tournament/create" className="btn-primary text-[13px]">
+            Create a tournament
+          </Link>
           <Link href="/leaderboard" className="btn-outline text-[13px]">
             View leaderboard
           </Link>
@@ -35,8 +37,9 @@ export default function TournamentPage() {
           </div>
           <div className="divide-y divide-border-soft">
             {arenaTournaments.map((t) => (
-              <div
-                key={t.name}
+              <Link
+                key={t.id}
+                href={`/tournament/${t.id}`}
                 className="flex items-center justify-between px-4 py-3 text-[13px] hover:bg-white/[0.03]"
               >
                 <span className="text-text-strong truncate pr-2">{t.name}</span>
@@ -47,7 +50,7 @@ export default function TournamentPage() {
                     {t.starts}
                   </span>
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -58,8 +61,9 @@ export default function TournamentPage() {
           </div>
           <div className="divide-y divide-border-soft">
             {swissTournaments.map((t) => (
-              <div
-                key={t.name}
+              <Link
+                key={t.id}
+                href={`/tournament/${t.id}`}
                 className="flex items-center justify-between px-4 py-3 text-[13px] hover:bg-white/[0.03]"
               >
                 <span className="text-text-strong truncate pr-2">{t.name}</span>
@@ -69,7 +73,7 @@ export default function TournamentPage() {
                   <span className="hidden sm:inline">{t.players} players</span>
                   <span>{t.starts}</span>
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
