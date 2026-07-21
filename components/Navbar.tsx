@@ -6,6 +6,7 @@ import { Menu, X, Search } from "lucide-react";
 
 const navItems = [
   { name: "Play", href: "/game" },
+  { name: "Puzzles", href: "/puzzle" },
   { name: "Tournaments", href: "/tournament" },
   { name: "Leaderboard", href: "/leaderboard" },
   { name: "Learn", href: "/about" },
