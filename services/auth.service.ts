@@ -11,7 +11,7 @@ import { AuthResponse, LoginRequest, SignupRequest, ForgotPasswordRequest } from
 
 export const authService = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    await signInWithEmailAndPassword(auth, data.email, data.password);
+    await signInWithEmailAndPassword(auth, data.usernameOrEmail, data.password);
     const response = await api.get<AuthResponse>("/auth/me");
     return response.data;
   },
