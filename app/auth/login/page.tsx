@@ -34,7 +34,7 @@ export default function LoginPage() {
       await authService.googleLogin();
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Google sign-in failed.");
+      setError(err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Google sign-in failed.");
     } finally {
       setLoading(false);
     }
