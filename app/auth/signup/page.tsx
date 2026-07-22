@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useGoogleLogin } from "@react-oauth/google";
+
 import { authService } from "@/services/auth.service";
 
 export default function SignupPage() {
@@ -24,32 +24,29 @@ export default function SignupPage() {
     }
     setLoading(true);
     try {
-      const data = await authService.signup({ username, email, password });
-      localStorage.setItem("token", data.token);
+      await authService.signup({ username, email, password });
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Sign up failed. Please try again.");
+      console.error(err);
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Sign up failed. Please try again.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
   }
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setError("");
-      setLoading(true);
-      try {
-        const data = await authService.googleLogin(tokenResponse.access_token);
-        localStorage.setItem("token", data.token);
-        router.push("/dashboard");
-      } catch (err: any) {
-        setError(err?.response?.data?.message || "Google sign-in failed.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    onError: () => setError("Google sign-in failed."),
-  });
+  const googleLogin = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await authService.googleLogin();
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Google sign-in failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="flex-1 flex items-start justify-center bg-bg px-4 py-12">

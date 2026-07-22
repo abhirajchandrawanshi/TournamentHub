@@ -3,3 +3,7 @@ node_modules/
 out/
 .env
 .env.local
+serviceAccountKey.json
+backend/venv/
+__pycache__/
+*.pyc
