@@ -64,6 +64,61 @@ def create_game(
         "status": new_game.status
     }
 
+@router.post("/matchmake")
+def matchmake_game(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Find waiting game
+    waiting_game = db.query(Game).filter(
+        Game.status == "waiting",
+        Game.white_player_id != current_user.id
+    ).first()
+
+    if waiting_game:
+        waiting_game.black_player_id = current_user.id
+        waiting_game.status = "active"
+        db.commit()
+        db.refresh(waiting_game)
+        return {"id": waiting_game.id, "status": "active", "color": "b"}
+
+    # Otherwise create waiting game
+    game_id = f"game-{uuid.uuid4().hex[:12]}"
+    new_game = Game(
+        id=game_id,
+        white_player_id=current_user.id,
+        black_player_id="waiting-opponent",
+        clock_control="5+0",
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        moves="",
+        status="waiting"
+    )
+    db.add(new_game)
+    db.commit()
+    return {"id": new_game.id, "status": "waiting", "color": "w"}
+
+@router.post("/{game_id}/join")
+def join_existing_game(
+    game_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    game = db.query(Game).filter(Game.id == game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    if game.white_player_id == current_user.id:
+        return {"id": game.id, "color": "w", "status": game.status}
+    elif game.black_player_id == current_user.id:
+        return {"id": game.id, "color": "b", "status": game.status}
+    elif game.black_player_id == "waiting-opponent":
+        game.black_player_id = current_user.id
+        game.status = "active"
+        db.commit()
+        return {"id": game.id, "color": "b", "status": "active"}
+    
+    return {"id": game.id, "color": "spectator", "status": game.status}
+
 @router.get("/{game_id}")
 def get_game(game_id: str, db: Session = Depends(get_db)):
     game = db.query(Game).filter(Game.id == game_id).first()
@@ -74,16 +129,16 @@ def get_game(game_id: str, db: Session = Depends(get_db)):
         "id": game.id,
         "tournament_id": game.tournament_id,
         "white": {
-            "id": game.white_player.id,
-            "name": game.white_player.name,
-            "rating": game.white_player.rating,
-            "avatar": game.white_player.avatar
+            "id": game.white_player.id if game.white_player else "white-player",
+            "name": game.white_player.name if game.white_player else "White Player",
+            "rating": game.white_player.rating if game.white_player else 1500,
+            "avatar": game.white_player.avatar if game.white_player else None
         },
         "black": {
-            "id": game.black_player.id,
-            "name": game.black_player.name,
-            "rating": game.black_player.rating,
-            "avatar": game.black_player.avatar
+            "id": game.black_player.id if game.black_player else "waiting-opponent",
+            "name": game.black_player.name if game.black_player else "Waiting for Opponent...",
+            "rating": game.black_player.rating if game.black_player else 1500,
+            "avatar": game.black_player.avatar if game.black_player else None
         },
         "clock_control": game.clock_control,
         "fen": game.fen,

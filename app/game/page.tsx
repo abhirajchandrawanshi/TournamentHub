@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { Chess, Square } from "chess.js";
 import ChessBoard from "@/components/ChessBoard";
 import api from "@/lib/axios";
+import { useSearchParams } from "next/navigation";
 
 function fenToPosition(fen: string): Record<string, string> {
   const position: Record<string, string> = {};
@@ -65,7 +66,11 @@ function PlayerRow({
   );
 }
 
-export default function GamePage() {
+function GameComponent() {
+  const searchParams = useSearchParams();
+  const queryGameId = searchParams.get("gameId");
+
+  const [mode, setMode] = useState<"ai" | "online" | "friend">("ai");
   const [game, setGame] = useState<Chess>(() => new Chess());
   const [fen, setFen] = useState<string>(game.fen());
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
@@ -74,24 +79,74 @@ export default function GamePage() {
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
   const [gameStatus, setGameStatus] = useState<string>("active");
   const [statusText, setStatusText] = useState<string>("White to play");
-  const [whiteClock, setWhiteClock] = useState<number>(300); // 5 mins
-  const [blackClock, setBlackClock] = useState<number>(300); // 5 mins
-  const [gameId, setGameId] = useState<string | null>(null);
+  const [whiteClock, setWhiteClock] = useState<number>(300);
+  const [blackClock, setBlackClock] = useState<number>(300);
+  const [gameId, setGameId] = useState<string | null>(queryGameId || null);
+  const [playerColor, setPlayerColor] = useState<"w" | "b">("w");
+  const [opponentName, setOpponentName] = useState<string>("GM_Arjun_Mehta (AI)");
+  const [opponentRating, setOpponentRating] = useState<number>(2400);
+  const [copied, setCopied] = useState(false);
 
-  // Initialize or fetch game from backend
+  // Initialize or join existing game
   useEffect(() => {
-    async function initBackendGame() {
-      try {
-        const res = await api.post("/games", { opponent_id: "ai-opponent", clock_control: "5+0" });
-        if (res.data?.id) {
-          setGameId(res.data.id);
+    async function initGame() {
+      if (queryGameId) {
+        setMode("friend");
+        try {
+          const joinRes = await api.post(`/games/${queryGameId}/join`);
+          if (joinRes.data?.color === "b") setPlayerColor("b");
+          const gameRes = await api.get(`/games/${queryGameId}`);
+          if (gameRes.data) {
+            setGameId(queryGameId);
+            setOpponentName(joinRes.data?.color === "b" ? gameRes.data.white.name : gameRes.data.black.name);
+          }
+        } catch (e) {
+          console.error("Error joining shared game:", e);
         }
-      } catch (err) {
-        console.error("Local game session running:", err);
+      } else if (mode === "ai") {
+        try {
+          const res = await api.post("/games", { opponent_id: "ai-opponent", clock_control: "5+0" });
+          if (res.data?.id) setGameId(res.data.id);
+        } catch (e) {
+          console.error("Session init:", e);
+        }
       }
     }
-    initBackendGame();
-  }, []);
+    initGame();
+  }, [queryGameId, mode]);
+
+  // Live polling for online human opponents
+  useEffect(() => {
+    if (mode === "ai" || !gameId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get(`/games/${gameId}`);
+        if (res.data) {
+          if (res.data.fen && res.data.fen !== game.fen()) {
+            const updatedChess = new Chess(res.data.fen);
+            setGame(updatedChess);
+            setFen(res.data.fen);
+            setMoveHistory(res.data.moves || []);
+          }
+          if (res.data.status && res.data.status !== "waiting" && res.data.status !== gameStatus) {
+            setGameStatus(res.data.status);
+          }
+          if (playerColor === "w" && res.data.black?.name) {
+            setOpponentName(res.data.black.name);
+            setOpponentRating(res.data.black.rating);
+          } else if (playerColor === "b" && res.data.white?.name) {
+            setOpponentName(res.data.white.name);
+            setOpponentRating(res.data.white.rating);
+          }
+        }
+      } catch (err) {
+        console.error("Live game sync err:", err);
+      }
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [game, gameId, mode, gameStatus, playerColor]);
 
   // Timer countdown
   useEffect(() => {
@@ -161,27 +216,28 @@ export default function GamePage() {
     [game, gameId]
   );
 
-  // Trigger AI move if it's Black's turn
+  // Trigger AI move if in AI mode and it's Black's turn
   useEffect(() => {
-    if (game.turn() === "b" && gameStatus === "active" && !game.isGameOver()) {
+    if (mode === "ai" && game.turn() === "b" && gameStatus === "active" && !game.isGameOver()) {
       const timer = setTimeout(() => {
         const possibleMoves = game.moves({ verbose: true });
         if (possibleMoves.length > 0) {
-          // Prefer captures if available
           const captures = possibleMoves.filter((m) => m.captured);
-          const selectedMove = captures.length > 0
-            ? captures[Math.floor(Math.random() * captures.length)]
-            : possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+          const selectedMove =
+            captures.length > 0
+              ? captures[Math.floor(Math.random() * captures.length)]
+              : possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
 
           makeMove(selectedMove.from, selectedMove.to);
         }
       }, 600);
       return () => clearTimeout(timer);
     }
-  }, [game, fen, gameStatus, makeMove]);
+  }, [game, fen, gameStatus, makeMove, mode]);
 
   const handleSquareClick = (square: string) => {
     if (gameStatus !== "active") return;
+    if (mode !== "ai" && game.turn() !== playerColor) return;
 
     if (selectedSquare) {
       if (legalTargets.includes(square)) {
@@ -190,7 +246,6 @@ export default function GamePage() {
       }
     }
 
-    // Select piece
     const piece = game.get(square as Square);
     if (piece && piece.color === game.turn()) {
       setSelectedSquare(square);
@@ -202,9 +257,32 @@ export default function GamePage() {
     }
   };
 
+  const startOnlineMatchmaking = async () => {
+    setMode("online");
+    try {
+      const res = await api.post("/games/matchmake");
+      if (res.data?.id) {
+        setGameId(res.data.id);
+        setPlayerColor(res.data.color || "w");
+        setOpponentName(res.data.status === "waiting" ? "Searching for Opponent..." : "Online Competitor");
+        setGameStatus(res.data.status);
+      }
+    } catch (e) {
+      console.error("Matchmaking error:", e);
+    }
+  };
+
+  const copyInviteLink = () => {
+    if (!gameId) return;
+    const url = `${window.location.origin}/game?gameId=${gameId}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const handleResign = async () => {
     setGameStatus("finished");
-    setStatusText("You resigned. GM_Arjun_Mehta wins!");
+    setStatusText("You resigned.");
     if (gameId) {
       try {
         await api.post(`/games/${gameId}/resign`);
@@ -226,9 +304,9 @@ export default function GamePage() {
     setStatusText("White to play");
     setWhiteClock(300);
     setBlackClock(300);
+    setMode("ai");
   };
 
-  // Group move history into pairs
   const movePairs: [string, string?][] = [];
   for (let i = 0; i < moveHistory.length; i += 2) {
     movePairs.push([moveHistory[i], moveHistory[i + 1]]);
@@ -239,9 +317,33 @@ export default function GamePage() {
       <div className="max-w-[1000px] mx-auto px-3 py-4 grid grid-cols-1 lg:grid-cols-[minmax(0,520px)_300px] gap-4 justify-center">
         {/* Board column */}
         <div className="flex flex-col gap-2 items-center lg:items-stretch">
+          {/* Mode Selector Header */}
+          <div className="flex gap-2 w-full mb-1">
+            <button
+              onClick={() => setMode("ai")}
+              className={`flex-1 text-[12px] sm:text-[13px] py-1.5 px-2 rounded-sm border transition-colors ${
+                mode === "ai"
+                  ? "bg-accent-soft border-accent text-accent font-semibold"
+                  : "border-border text-text-muted hover:text-text-strong"
+              }`}
+            >
+              🤖 vs Computer AI
+            </button>
+            <button
+              onClick={startOnlineMatchmaking}
+              className={`flex-1 text-[12px] sm:text-[13px] py-1.5 px-2 rounded-sm border transition-colors ${
+                mode === "online"
+                  ? "bg-accent-soft border-accent text-accent font-semibold"
+                  : "border-border text-text-muted hover:text-text-strong"
+              }`}
+            >
+              ⚔️ Online Matchmaking
+            </button>
+          </div>
+
           <PlayerRow
-            name="GM_Arjun_Mehta (AI)"
-            rating={2400}
+            name={playerColor === "w" ? opponentName : "You"}
+            rating={playerColor === "w" ? opponentRating : 1967}
             color="b"
             clock={formatTime(blackClock)}
             active={game.turn() === "b" && gameStatus === "active"}
@@ -251,7 +353,8 @@ export default function GamePage() {
             <ChessBoard
               position={fenToPosition(fen)}
               size={480}
-              interactive={gameStatus === "active" && game.turn() === "w"}
+              orientation={playerColor === "w" ? "white" : "black"}
+              interactive={gameStatus === "active" && (mode === "ai" || game.turn() === playerColor)}
               selectedSquare={selectedSquare}
               legalTargets={legalTargets}
               lastMove={lastMove}
@@ -260,8 +363,8 @@ export default function GamePage() {
           </div>
 
           <PlayerRow
-            name="You"
-            rating={1967}
+            name={playerColor === "w" ? "You" : opponentName}
+            rating={playerColor === "w" ? 1967 : opponentRating}
             color="w"
             clock={formatTime(whiteClock)}
             active={game.turn() === "w" && gameStatus === "active"}
@@ -270,6 +373,9 @@ export default function GamePage() {
           <div className="flex gap-2 mt-1 w-full">
             {gameStatus === "active" ? (
               <>
+                <button onClick={copyInviteLink} className="btn-outline text-[13px] flex-1">
+                  {copied ? "Link Copied!" : "🔗 Invite Friend"}
+                </button>
                 <button onClick={handleResign} className="btn-outline text-[13px] flex-1 !border-danger !text-danger">
                   Resign
                 </button>
@@ -285,7 +391,9 @@ export default function GamePage() {
         {/* Side panel */}
         <div className="flex flex-col gap-3 min-w-0">
           <div className="card p-3">
-            <div className="label-eyebrow mb-2">Rated &middot; Blitz &middot; 5+0</div>
+            <div className="label-eyebrow mb-2">
+              {mode === "ai" ? "Vs AI Computer" : mode === "online" ? "Live Online Match" : "Friend Challenge"} &middot; 5+0
+            </div>
             <div className="text-[13px] text-text font-medium">
               {statusText}
             </div>
@@ -313,7 +421,7 @@ export default function GamePage() {
           <div className="card p-3">
             <div className="label-eyebrow mb-2">Live Chat</div>
             <div className="text-[13px] text-text-muted italic mb-2">
-              GM_Arjun_Mehta: Good luck, have fun!
+              {opponentName}: Good luck, have fun!
             </div>
             <input
               placeholder="Send a message..."
@@ -323,5 +431,13 @@ export default function GamePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function GamePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-text-muted">Loading Game Engine...</div>}>
+      <GameComponent />
+    </Suspense>
   );
 }
