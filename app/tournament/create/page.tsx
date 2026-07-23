@@ -2,17 +2,37 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import api from "@/lib/axios";
 
 export default function CreateTournamentPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [clock, setClock] = useState("3+0");
   const [type, setType] = useState("Arena");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Backend ready hone par yahan API call hogi (POST /tournaments)
-    router.push("/tournament");
+    if (!name.trim()) {
+      setError("Please enter a tournament name.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.post("/tournaments", { name, clock, type });
+      if (res.data?.id) {
+        router.push(`/tournament/${res.data.id}`);
+      } else {
+        router.push("/tournament");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.response?.data?.detail || "Failed to create tournament. Please log in.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -21,6 +41,12 @@ export default function CreateTournamentPage() {
         <h1 className="text-[20px] font-semibold text-text-strong mb-5">Create a tournament</h1>
 
         <form onSubmit={handleSubmit} className="card p-5 flex flex-col gap-3">
+          {error && (
+            <div className="text-[12px] text-danger bg-danger/10 border border-danger rounded-sm px-3 py-2">
+              {error}
+            </div>
+          )}
+
           <div>
             <label className="label-eyebrow block mb-1" htmlFor="name">
               Tournament name
@@ -29,6 +55,7 @@ export default function CreateTournamentPage() {
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Speed Chess Championship"
               className="w-full bg-bg-input border border-border rounded-sm px-3 py-2 text-[14px] text-text-strong outline-none focus:border-accent transition-colors"
             />
           </div>
@@ -66,8 +93,8 @@ export default function CreateTournamentPage() {
             </select>
           </div>
 
-          <button type="submit" className="btn-primary w-full mt-2">
-            Create
+          <button type="submit" disabled={loading} className="btn-primary w-full mt-2 disabled:opacity-60">
+            {loading ? "Creating..." : "Create"}
           </button>
         </form>
       </div>
