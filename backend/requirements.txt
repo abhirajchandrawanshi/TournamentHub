@@ -1,0 +1,6 @@
+fastapi[standard]
+sqlalchemy
+psycopg2-binary
+firebase-admin
+pydantic-settings
+alembic

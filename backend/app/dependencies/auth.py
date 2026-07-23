@@ -20,7 +20,7 @@ async def get_current_user(
         name = decoded_token.get("name", "User")
         picture = decoded_token.get("picture")
 
-        # Check if user exists in our Supabase DB, otherwise sync it
+        # Check if user exists in database, else register/sync
         user = db.query(User).filter(User.id == uid).first()
         if not user:
             user = User(

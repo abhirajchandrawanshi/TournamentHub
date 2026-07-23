@@ -3,18 +3,16 @@ from firebase_admin import credentials
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import auth
-
-# Initialize Firebase Admin
+from app.routers import auth, tournament, game, leaderboard
 import json
 
 try:
     try:
-        # Try parsing as a raw JSON string first (ideal for Vercel Environment Variables)
+        # Try parsing as a raw JSON string first
         cert_dict = json.loads(settings.FIREBASE_SERVICE_ACCOUNT_JSON)
         cred = credentials.Certificate(cert_dict)
     except json.JSONDecodeError:
-        # Fallback to treating it as a file path (for local development)
+        # Fallback to treating it as a file path
         cred = credentials.Certificate(settings.FIREBASE_SERVICE_ACCOUNT_JSON)
         
     firebase_admin.initialize_app(cred)
@@ -32,3 +30,6 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(tournament.router, prefix="/api")
+app.include_router(game.router, prefix="/api")
+app.include_router(leaderboard.router, prefix="/api")
