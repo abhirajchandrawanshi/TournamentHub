@@ -16,6 +16,7 @@ def fix_database_url(url: str) -> str:
                 user_pass, host_port = user_pass_host.rsplit("@", 1)
                 if ":" in user_pass:
                     user, password = user_pass.split(":", 1)
+                    # Unquote first to avoid double encoding if already %40, then quote_plus
                     unquoted_password = urllib.parse.unquote(password)
                     quoted_password = urllib.parse.quote_plus(unquoted_password)
                     return f"{scheme}://{user}:{quoted_password}@{host_port}/{dbname}"
