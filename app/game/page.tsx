@@ -85,7 +85,25 @@ function GameComponent() {
   const [playerColor, setPlayerColor] = useState<"w" | "b">("w");
   const [opponentName, setOpponentName] = useState<string>("GM_Arjun_Mehta (AI)");
   const [opponentRating, setOpponentRating] = useState<number>(2400);
+  const [myName, setMyName] = useState<string>("You");
+  const [myRating, setMyRating] = useState<number>(1500);
   const [copied, setCopied] = useState(false);
+
+  // Fetch my profile info
+  useEffect(() => {
+    async function fetchMyProfile() {
+      try {
+        const res = await api.get<{ user: { name: string; username: string; rating: number } }>("/auth/me");
+        if (res.data?.user) {
+          setMyName(res.data.user.name || res.data.user.username || "You");
+          setMyRating(res.data.user.rating || 1500);
+        }
+      } catch (e) {
+        console.error("Auth profile fetch note:", e);
+      }
+    }
+    fetchMyProfile();
+  }, []);
 
   // Initialize or join existing game
   useEffect(() => {
@@ -99,6 +117,7 @@ function GameComponent() {
           if (gameRes.data) {
             setGameId(queryGameId);
             setOpponentName(joinRes.data?.color === "b" ? gameRes.data.white.name : gameRes.data.black.name);
+            setOpponentRating(joinRes.data?.color === "b" ? gameRes.data.white.rating : gameRes.data.black.rating);
           }
         } catch (e) {
           console.error("Error joining shared game:", e);
@@ -342,8 +361,8 @@ function GameComponent() {
           </div>
 
           <PlayerRow
-            name={playerColor === "w" ? opponentName : "You"}
-            rating={playerColor === "w" ? opponentRating : 1967}
+            name={playerColor === "w" ? opponentName : myName}
+            rating={playerColor === "w" ? opponentRating : myRating}
             color="b"
             clock={formatTime(blackClock)}
             active={game.turn() === "b" && gameStatus === "active"}
@@ -363,8 +382,8 @@ function GameComponent() {
           </div>
 
           <PlayerRow
-            name={playerColor === "w" ? "You" : opponentName}
-            rating={playerColor === "w" ? 1967 : opponentRating}
+            name={playerColor === "w" ? myName : opponentName}
+            rating={playerColor === "w" ? myRating : opponentRating}
             color="w"
             clock={formatTime(whiteClock)}
             active={game.turn() === "w" && gameStatus === "active"}
