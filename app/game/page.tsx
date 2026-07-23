@@ -5,6 +5,8 @@ import { Chess, Square } from "chess.js";
 import ChessBoard from "@/components/ChessBoard";
 import api from "@/lib/axios";
 import { useSearchParams } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 function fenToPosition(fen: string): Record<string, string> {
   const position: Record<string, string> = {};
@@ -85,24 +87,27 @@ function GameComponent() {
   const [playerColor, setPlayerColor] = useState<"w" | "b">("w");
   const [opponentName, setOpponentName] = useState<string>("GM_Arjun_Mehta (AI)");
   const [opponentRating, setOpponentRating] = useState<number>(2400);
-  const [myName, setMyName] = useState<string>("You");
+  const [myName, setMyName] = useState<string>("Player");
   const [myRating, setMyRating] = useState<number>(1500);
   const [copied, setCopied] = useState(false);
 
-  // Fetch my profile info
+  // Sync auth profile for myName
   useEffect(() => {
-    async function fetchMyProfile() {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setMyName(currentUser.displayName || currentUser.email?.split("@")[0] || "Player");
+      }
       try {
         const res = await api.get<{ user: { name: string; username: string; rating: number } }>("/auth/me");
         if (res.data?.user) {
-          setMyName(res.data.user.name || res.data.user.username || "You");
+          setMyName(res.data.user.name || res.data.user.username || currentUser?.displayName || "Player");
           setMyRating(res.data.user.rating || 1500);
         }
       } catch (e) {
         console.error("Auth profile fetch note:", e);
       }
-    }
-    fetchMyProfile();
+    });
+    return () => unsubscribe();
   }, []);
 
   // Initialize or join existing game
@@ -276,8 +281,27 @@ function GameComponent() {
     }
   };
 
+  const switchToAiMode = () => {
+    setMode("ai");
+    setOpponentName("GM_Arjun_Mehta (AI)");
+    setOpponentRating(2400);
+    handleNewGame();
+  };
+
   const startOnlineMatchmaking = async () => {
     setMode("online");
+    setOpponentName("Searching for Opponent...");
+    setOpponentRating(1500);
+    const newG = new Chess();
+    setGame(newG);
+    setFen(newG.fen());
+    setSelectedSquare(null);
+    setLegalTargets([]);
+    setLastMove(null);
+    setMoveHistory([]);
+    setWhiteClock(300);
+    setBlackClock(300);
+
     try {
       const res = await api.post("/games/matchmake");
       if (res.data?.id) {
@@ -339,7 +363,7 @@ function GameComponent() {
           {/* Mode Selector Header */}
           <div className="flex gap-2 w-full mb-1">
             <button
-              onClick={() => setMode("ai")}
+              onClick={switchToAiMode}
               className={`flex-1 text-[12px] sm:text-[13px] py-1.5 px-2 rounded-sm border transition-colors ${
                 mode === "ai"
                   ? "bg-accent-soft border-accent text-accent font-semibold"
