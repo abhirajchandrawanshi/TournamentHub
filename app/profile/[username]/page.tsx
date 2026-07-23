@@ -1,29 +1,60 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useParams } from "next/navigation";
+import api from "@/lib/axios";
 
-const mockUsers = [
-  "GM_Arjun_Mehta",
-  "queenside_pawn",
-  "IM_Kavya92",
-  "rook_runner",
-  "knight_errant",
-  "Prakriti_Singh",
-  "endgame_wizard",
-  "bishop_pair",
-];
+interface ProfileData {
+  username: string;
+  name: string;
+  rating: number;
+  avatar?: string | null;
+}
 
-const ratings = [
-  { mode: "Bullet", value: 1842 },
-  { mode: "Blitz", value: 1967 },
-  { mode: "Rapid", value: 2011 },
-  { mode: "Classical", value: 1888 },
-];
+export default function ProfilePage() {
+  const params = useParams();
+  const rawUsername = params?.username as string;
+  const username = rawUsername ? decodeURIComponent(rawUsername) : "Player";
 
-export default function ProfilePage({ params }: { params: { username: string } }) {
-  const username = decodeURIComponent(params.username);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!mockUsers.includes(username)) {
-    notFound();
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const res = await api.get<ProfileData[] | ProfileData>("/leaderboard");
+        if (Array.isArray(res.data)) {
+          const match = res.data.find(
+            (u) => u.username?.toLowerCase() === username.toLowerCase() || u.name?.toLowerCase() === username.toLowerCase()
+          );
+          if (match) setProfile(match);
+        }
+      } catch (err) {
+        console.error("Profile load note:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchProfile();
+  }, [username]);
+
+  const initials = username.slice(0, 2).toUpperCase();
+  const rating = profile?.rating || 1500;
+
+  const ratings = [
+    { mode: "Bullet", value: rating },
+    { mode: "Blitz", value: rating },
+    { mode: "Rapid", value: rating },
+    { mode: "Classical", value: rating },
+  ];
+
+  if (loading) {
+    return (
+      <main className="flex-1 bg-bg flex items-center justify-center p-8 text-[13px] text-text-muted">
+        Loading user profile...
+      </main>
+    );
   }
 
   return (
@@ -31,11 +62,11 @@ export default function ProfilePage({ params }: { params: { username: string } }
       <div className="max-w-[700px] mx-auto px-4 py-6">
         <div className="card p-5 flex items-center gap-4 mb-5">
           <div className="w-16 h-16 rounded-full bg-accent-soft border border-accent flex items-center justify-center text-[20px] font-bold text-accent shrink-0">
-            {username.slice(0, 2).toUpperCase()}
+            {initials}
           </div>
           <div className="min-w-0">
-            <h1 className="text-[19px] font-semibold text-text-strong truncate">{username}</h1>
-            <p className="text-[13px] text-text-muted">ChessArena member</p>
+            <h1 className="text-[19px] font-semibold text-text-strong truncate">{profile?.name || username}</h1>
+            <p className="text-[13px] text-text-muted">@{username} &middot; ChessArena member</p>
           </div>
           <Link href="/game" className="btn-primary text-[13px] ml-auto shrink-0">
             Challenge

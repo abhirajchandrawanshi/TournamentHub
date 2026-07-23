@@ -1,42 +1,80 @@
-import Link from "next/dist/client/link";
+"use client";
 
-const ratings = [
-  { mode: "Bullet", value: 1842, games: 1204 },
-  { mode: "Blitz", value: 1967, games: 3410 },
-  { mode: "Rapid", value: 2011, games: 512 },
-  { mode: "Classical", value: 1888, games: 96 },
-];
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import api from "@/lib/axios";
 
-const recentGames = [
-  { opponent: "IM_Kavya92", result: "Won", mode: "Blitz 5+3", moves: 41, when: "2h ago" },
-  { opponent: "rook_runner", result: "Lost", mode: "Bullet 1+0", moves: 28, when: "5h ago" },
-  { opponent: "GM_Arjun", result: "Draw", mode: "Rapid 10+0", moves: 63, when: "1d ago" },
-  { opponent: "queenside_pawn", result: "Won", mode: "Blitz 3+2", moves: 35, when: "1d ago" },
-  { opponent: "knight_errant", result: "Won", mode: "Classical 15+10", moves: 54, when: "2d ago" },
-];
-
-function resultColor(r: string) {
-  if (r === "Won") return "text-accent";
-  if (r === "Lost") return "text-danger";
-  return "text-text-muted";
+interface UserProfile {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  rating: number;
+  avatar: string | null;
 }
 
 export default function DashboardPage() {
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setAuthUser(user);
+      if (user) {
+        try {
+          const res = await api.get<{ user: UserProfile }>("/auth/me");
+          if (res.data?.user) {
+            setProfile(res.data.user);
+          }
+        } catch (err) {
+          console.error("Failed to load user profile:", err);
+        }
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const username = profile?.username || profile?.name || authUser?.displayName || authUser?.email?.split("@")[0] || "Player";
+  const userEmail = profile?.email || authUser?.email || "";
+  const rating = profile?.rating || 1500;
+  const initials = username.slice(0, 2).toUpperCase();
+
+  const ratings = [
+    { mode: "Bullet", value: rating, games: 0 },
+    { mode: "Blitz", value: rating, games: 0 },
+    { mode: "Rapid", value: rating, games: 0 },
+    { mode: "Classical", value: rating, games: 0 },
+  ];
+
+  if (loading) {
+    return (
+      <main className="flex-1 bg-bg flex items-center justify-center p-8 text-[13px] text-text-muted">
+        Loading dashboard profile...
+      </main>
+    );
+  }
+
   return (
     <main className="flex-1 bg-bg">
       <div className="max-w-[1000px] mx-auto px-4 py-6">
         {/* Profile header */}
         <div className="card p-5 flex flex-col sm:flex-row sm:items-center gap-4 mb-5">
           <div className="w-16 h-16 rounded-full bg-accent-soft border border-accent flex items-center justify-center text-[22px] font-bold text-accent shrink-0">
-            PS
+            {initials}
           </div>
           <div className="min-w-0">
-            <h1 className="text-[19px] font-semibold text-text-strong">Prakriti_Singh</h1>
-            <p className="text-[13px] text-text-muted">Member since Jan 2025 &middot; India</p>
+            <h1 className="text-[19px] font-semibold text-text-strong">{username}</h1>
+            <p className="text-[13px] text-text-muted">{userEmail ? `${userEmail} \u00b7 ` : ""}ChessArena Member</p>
           </div>
           <div className="sm:ml-auto flex gap-2">
-           <Link href="/settings" className="btn-outline text-[13px]">Edit profile</Link>
-<Link href="/game" className="btn-primary text-[13px]">Challenge</Link>   </div>
+            <Link href="/game" className="btn-primary text-[13px]">
+              Play Game
+            </Link>
+          </div>
         </div>
 
         {/* Ratings */}
@@ -52,27 +90,12 @@ export default function DashboardPage() {
 
         {/* Recent games */}
         <div className="card p-0 overflow-hidden">
-          <div className="px-4 py-3 border-b border-border-soft">
+          <div className="px-4 py-3 border-b border-border-soft flex items-center justify-between">
             <h2 className="label-eyebrow">Recent games</h2>
+            <Link href="/game" className="text-[12px] text-blue hover:underline">Start game »</Link>
           </div>
-          <div className="divide-y divide-border-soft">
-            {recentGames.map((g, i) => (
-              <Link
-                key={i}
-                href={`/profile/${g.opponent}`}
-                className="flex items-center justify-between px-4 py-2.5 text-[13px] hover:bg-white/[0.03]"
-              >
-                <span className={`w-14 shrink-0 font-semibold ${resultColor(g.result)}`}>
-                  {g.result}
-                </span>
-                <span className="flex-1 text-text-strong truncate px-2">vs {g.opponent}</span>
-                <span className="hidden sm:block text-text-muted w-32 shrink-0">{g.mode}</span>
-                <span className="hidden sm:block text-text-muted w-16 shrink-0 text-right">
-                  {g.moves} moves
-                </span>
-                <span className="text-text-muted w-16 shrink-0 text-right">{g.when}</span>
-              </Link>
-            ))}
+          <div className="p-6 text-center text-[13px] text-text-muted">
+            No games recorded yet. Start a new live game at <Link href="/game" className="text-accent font-semibold hover:underline">/game</Link>!
           </div>
         </div>
       </div>

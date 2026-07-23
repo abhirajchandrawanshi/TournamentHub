@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Menu, X, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Menu, X, Search, User as UserIcon, LogOut, LayoutDashboard } from "lucide-react";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 
 const navItems = [
   { name: "Play", href: "/game" },
@@ -13,7 +16,30 @@ const navItems = [
 ];
 
 export default function Navbar() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setDropdownOpen(false);
+      router.push("/");
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
+  const username = user?.displayName || user?.email?.split("@")[0] || "User";
+  const userInitials = username.slice(0, 2).toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 bg-bg-header border-b border-border-soft">
@@ -58,12 +84,63 @@ export default function Navbar() {
 
         {/* Auth actions */}
         <div className="hidden sm:flex items-center gap-2">
-          <Link href="/auth/login" className="btn-outline text-[13px] !py-1.5 !px-3">
-            Sign in
-          </Link>
-          <Link href="/auth/signup" className="btn-primary text-[13px] !py-1.5 !px-3">
-            Register
-          </Link>
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setDropdownOpen((prev) => !prev)}
+                className="flex items-center gap-2 px-2.5 py-1 rounded-sm border border-border hover:border-accent transition-colors bg-bg-input text-text-strong"
+              >
+                <div className="w-6 h-6 rounded-full bg-accent-soft border border-accent flex items-center justify-center text-[11px] font-bold text-accent">
+                  {userInitials}
+                </div>
+                <span className="text-[13px] font-medium max-w-[120px] truncate">{username}</span>
+              </button>
+
+              {dropdownOpen && (
+                <div
+                  className="absolute right-0 mt-1 w-48 bg-surface border border-border rounded-sm shadow-lg py-1 z-50 text-[13px]"
+                  onMouseLeave={() => setDropdownOpen(false)}
+                >
+                  <div className="px-3 py-2 border-b border-border-soft">
+                    <p className="font-semibold text-text-strong truncate">{username}</p>
+                    <p className="text-[11px] text-text-muted truncate">{user.email}</p>
+                  </div>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-text hover:bg-white/[0.05] hover:text-text-strong"
+                  >
+                    <LayoutDashboard size={14} />
+                    Dashboard
+                  </Link>
+                  <Link
+                    href={`/profile/${username}`}
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-text hover:bg-white/[0.05] hover:text-text-strong"
+                  >
+                    <UserIcon size={14} />
+                    My Profile
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left flex items-center gap-2 px-3 py-2 text-danger hover:bg-danger/10 border-t border-border-soft mt-1"
+                  >
+                    <LogOut size={14} />
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <Link href="/auth/login" className="btn-outline text-[13px] !py-1.5 !px-3">
+                Sign in
+              </Link>
+              <Link href="/auth/signup" className="btn-primary text-[13px] !py-1.5 !px-3">
+                Register
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile toggle */}
@@ -91,12 +168,29 @@ export default function Navbar() {
               </Link>
             ))}
             <div className="flex gap-2 pt-3 pb-1">
-              <Link href="/auth/login" className="btn-outline text-[13px] flex-1 text-center">
-                Sign in
-              </Link>
-              <Link href="/auth/signup" className="btn-primary text-[13px] flex-1 text-center">
-                Register
-              </Link>
+              {user ? (
+                <div className="flex flex-col w-full gap-2">
+                  <Link
+                    href={`/profile/${username}`}
+                    onClick={() => setOpen(false)}
+                    className="btn-outline text-[13px] text-center"
+                  >
+                    Profile ({username})
+                  </Link>
+                  <button onClick={handleLogout} className="btn-primary text-[13px] text-center !bg-danger">
+                    Sign out
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Link href="/auth/login" className="btn-outline text-[13px] flex-1 text-center">
+                    Sign in
+                  </Link>
+                  <Link href="/auth/signup" className="btn-primary text-[13px] flex-1 text-center">
+                    Register
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
         </div>
