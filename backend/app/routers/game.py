@@ -64,6 +64,25 @@ def create_game(
         "status": new_game.status
     }
 
+@router.post("/invite")
+def create_invite_game(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    game_id = f"invite-{uuid.uuid4().hex[:12]}"
+    new_game = Game(
+        id=game_id,
+        white_player_id=current_user.id,
+        black_player_id="waiting-opponent",
+        clock_control="5+0",
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        moves="",
+        status="waiting"
+    )
+    db.add(new_game)
+    db.commit()
+    return {"id": new_game.id, "status": "waiting", "color": "w"}
+
 @router.post("/matchmake")
 def matchmake_game(
     current_user: User = Depends(get_current_user),

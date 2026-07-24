@@ -90,6 +90,8 @@ function GameComponent() {
   const [myName, setMyName] = useState<string>("Player");
   const [myRating, setMyRating] = useState<number>(1500);
   const [copied, setCopied] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState("");
 
   // Sync auth profile for myName
   useEffect(() => {
@@ -139,7 +141,7 @@ function GameComponent() {
     initGame();
   }, [queryGameId, mode]);
 
-  // Live polling for online human opponents
+  // Live polling for online human opponents & invited friends
   useEffect(() => {
     if (mode === "ai" || !gameId) return;
 
@@ -153,10 +155,13 @@ function GameComponent() {
             setFen(res.data.fen);
             setMoveHistory(res.data.moves || []);
           }
-          if (res.data.status && res.data.status !== "waiting" && res.data.status !== gameStatus) {
+          if (res.data.status && res.data.status !== gameStatus) {
             setGameStatus(res.data.status);
+            if (res.data.status === "active") {
+              setStatusText("Match started! White to play");
+            }
           }
-          if (playerColor === "w" && res.data.black?.name) {
+          if (playerColor === "w" && res.data.black?.name && res.data.black?.id !== "waiting-opponent") {
             setOpponentName(res.data.black.name);
             setOpponentRating(res.data.black.rating);
           } else if (playerColor === "b" && res.data.white?.name) {
@@ -315,12 +320,35 @@ function GameComponent() {
     }
   };
 
-  const copyInviteLink = () => {
-    if (!gameId) return;
-    const url = `${window.location.origin}/game?gameId=${gameId}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const startInviteGame = async () => {
+    setMode("friend");
+    setPlayerColor("w");
+    setOpponentName("Searching for Opponent...");
+    setOpponentRating(1500);
+    const newG = new Chess();
+    setGame(newG);
+    setFen(newG.fen());
+    setSelectedSquare(null);
+    setLegalTargets([]);
+    setLastMove(null);
+    setMoveHistory([]);
+    setWhiteClock(300);
+    setBlackClock(300);
+    setGameStatus("waiting");
+
+    try {
+      const res = await api.post("/games/invite");
+      if (res.data?.id) {
+        setGameId(res.data.id);
+        const url = `${window.location.origin}/game?gameId=${res.data.id}`;
+        setInviteUrl(url);
+        navigator.clipboard.writeText(url);
+        setCopied(true);
+        setShowInviteModal(true);
+      }
+    } catch (e) {
+      console.error("Error creating invite game:", e);
+    }
   };
 
   const handleResign = async () => {
@@ -414,9 +442,9 @@ function GameComponent() {
           />
 
           <div className="flex gap-2 mt-1 w-full">
-            {gameStatus === "active" ? (
+            {gameStatus === "active" || gameStatus === "waiting" ? (
               <>
-                <button onClick={copyInviteLink} className="btn-outline text-[13px] flex-1">
+                <button onClick={startInviteGame} className="btn-outline text-[13px] flex-1">
                   {copied ? "Link Copied!" : "🔗 Invite Friend"}
                 </button>
                 <button onClick={handleResign} className="btn-outline text-[13px] flex-1 !border-danger !text-danger">
@@ -473,6 +501,50 @@ function GameComponent() {
           </div>
         </div>
       </div>
+
+      {/* Invite Challenge Link Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="card w-full max-w-[440px] p-5 shadow-2xl">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[16px] font-semibold text-text-strong">⚔️ Challenge a Friend</h2>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="text-text-muted hover:text-text-strong text-[18px]"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-[13px] text-text-muted mb-4">
+              Send this custom match link to your friend. As soon as they open it in their browser, your board will automatically sync live!
+            </p>
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                readOnly
+                value={inviteUrl}
+                className="flex-1 bg-bg-input border border-border rounded-sm px-3 py-2 text-[13px] text-accent font-mono outline-none"
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(inviteUrl);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="btn-primary text-[13px] shrink-0"
+              >
+                {copied ? "Copied!" : "Copy Link"}
+              </button>
+            </div>
+            <button
+              onClick={() => setShowInviteModal(false)}
+              className="btn-outline w-full text-[13px]"
+            >
+              Close & Wait on Board
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
