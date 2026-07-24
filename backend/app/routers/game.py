@@ -3,7 +3,7 @@ import random
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, get_optional_user
 from app.models.user import User
 from app.models.game import Game
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/games", tags=["games"])
 @router.post("")
 def create_game(
     payload: dict,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
     opponent_id = payload.get("opponent_id")
@@ -66,7 +66,7 @@ def create_game(
 
 @router.post("/invite")
 def create_invite_game(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
     game_id = f"invite-{uuid.uuid4().hex[:12]}"
@@ -85,7 +85,7 @@ def create_invite_game(
 
 @router.post("/matchmake")
 def matchmake_game(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
     # Find waiting game
@@ -119,7 +119,7 @@ def matchmake_game(
 @router.post("/{game_id}/join")
 def join_existing_game(
     game_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
     game = db.query(Game).filter(Game.id == game_id).first()

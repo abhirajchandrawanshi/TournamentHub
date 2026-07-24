@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.user import User
 
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -41,3 +42,60 @@ async def get_current_user(
             detail=f"Invalid authentication credentials: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+async def get_optional_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security_optional),
+    db: Session = Depends(get_db)
+):
+    if not credentials:
+        guest_id = "guest-player"
+        guest = db.query(User).filter(User.id == guest_id).first()
+        if not guest:
+            guest = User(
+                id=guest_id,
+                name="Guest Player",
+                email="guest@chessarena.ai",
+                username="guest_player",
+                rating=1200
+            )
+            db.add(guest)
+            db.commit()
+            db.refresh(guest)
+        return guest
+
+    try:
+        token = credentials.credentials
+        decoded_token = firebase_auth.verify_id_token(token)
+        uid = decoded_token["uid"]
+        email = decoded_token.get("email", "player@chessarena.ai")
+        name = decoded_token.get("name", email.split("@")[0] if email else "Player")
+        picture = decoded_token.get("picture")
+
+        user = db.query(User).filter(User.id == uid).first()
+        if not user:
+            user = User(
+                id=uid,
+                email=email,
+                name=name,
+                avatar=picture,
+                username=email.split("@")[0] if email else "player"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        return user
+    except Exception:
+        guest_id = "guest-player"
+        guest = db.query(User).filter(User.id == guest_id).first()
+        if not guest:
+            guest = User(
+                id=guest_id,
+                name="Guest Player",
+                email="guest@chessarena.ai",
+                username="guest_player",
+                rating=1200
+            )
+            db.add(guest)
+            db.commit()
+            db.refresh(guest)
+        return guest

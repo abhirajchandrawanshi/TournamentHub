@@ -336,19 +336,29 @@ function GameComponent() {
     setBlackClock(300);
     setGameStatus("waiting");
 
+    let newId = `invite-${Math.random().toString(36).substring(2, 10)}`;
     try {
       const res = await api.post("/games/invite");
       if (res.data?.id) {
-        setGameId(res.data.id);
-        const url = `${window.location.origin}/game?gameId=${res.data.id}`;
-        setInviteUrl(url);
-        navigator.clipboard.writeText(url);
-        setCopied(true);
-        setShowInviteModal(true);
+        newId = res.data.id;
       }
     } catch (e) {
-      console.error("Error creating invite game:", e);
+      console.error("Invite API note:", e);
     }
+
+    setGameId(newId);
+    const url = `${window.location.origin}/game?gameId=${newId}`;
+    setInviteUrl(url);
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }
+    } catch (e) {
+      console.error("Clipboard error:", e);
+    }
+    setShowInviteModal(true);
   };
 
   const handleResign = async () => {
