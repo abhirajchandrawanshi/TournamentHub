@@ -12,7 +12,7 @@ const navItems = [
   { name: "Puzzles", href: "/puzzle" },
   { name: "Tournaments", href: "/tournament" },
   { name: "Leaderboard", href: "/leaderboard" },
-  { name: "Learn", href: "/about" },
+  { name: "Learn", href: "/learn" },
 ];
 
 export default function Navbar() {

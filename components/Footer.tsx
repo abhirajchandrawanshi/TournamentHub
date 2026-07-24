@@ -1,19 +1,41 @@
+import Link from "next/link";
+
 const columns = [
   {
     title: "ChessArena",
-    links: ["About", "Source code", "Blog", "Contact"],
+    links: [
+      { name: "About", href: "/about" },
+      { name: "Source code", href: "https://github.com/abhirajchandrawanshi/TournamentHub" },
+      { name: "Blog", href: "/about" },
+      { name: "Contact", href: "/about" },
+    ],
   },
   {
     title: "Play",
-    links: ["Create a game", "Tournaments", "Simultaneous exhibitions", "Leaderboard"],
+    links: [
+      { name: "Create a game", href: "/game" },
+      { name: "Tournaments", href: "/tournament" },
+      { name: "Simultaneous exhibitions", href: "/tournament" },
+      { name: "Leaderboard", href: "/leaderboard" },
+    ],
   },
   {
     title: "Community",
-    links: ["Players", "Teams", "Forum", "Streamers"],
+    links: [
+      { name: "Players", href: "/leaderboard" },
+      { name: "Teams", href: "/tournament" },
+      { name: "Forum", href: "/about" },
+      { name: "Streamers", href: "/leaderboard" },
+    ],
   },
   {
     title: "About",
-    links: ["Terms of service", "Privacy", "Ads", "FAQ"],
+    links: [
+      { name: "Terms of service", href: "/about" },
+      { name: "Privacy", href: "/about" },
+      { name: "Ads", href: "/about" },
+      { name: "FAQ", href: "/about" },
+    ],
   },
 ];
 
@@ -26,10 +48,10 @@ export default function Footer() {
             <h4 className="label-eyebrow mb-3">{col.title}</h4>
             <ul className="space-y-2">
               {col.links.map((l) => (
-                <li key={l}>
-                  <a href="#" className="text-[13px] text-text hover:text-text-strong">
-                    {l}
-                  </a>
+                <li key={l.name}>
+                  <Link href={l.href} className="text-[13px] text-text hover:text-text-strong transition-colors">
+                    {l.name}
+                  </Link>
                 </li>
               ))}
             </ul>
