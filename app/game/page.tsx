@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { Chess, Square } from "chess.js";
 import ChessBoard from "@/components/ChessBoard";
 import api from "@/lib/axios";
 import { useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+
+interface ChatMessage {
+  id: string;
+  sender: string;
+  text: string;
+  time: string;
+}
 
 function fenToPosition(fen: string): Record<string, string> {
   const position: Record<string, string> = {};
@@ -93,6 +100,12 @@ function GameComponent() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteUrl, setInviteUrl] = useState("");
 
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { id: "init", sender: "System", text: "Welcome to ChessArena! Good luck, have fun!", time: "12:00" }
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+
   // Sync auth profile for myName
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -141,7 +154,7 @@ function GameComponent() {
     initGame();
   }, [queryGameId, mode]);
 
-  // Live polling for online human opponents & invited friends
+  // Live polling for online human opponents & invited friends & live chat
   useEffect(() => {
     if (mode === "ai" || !gameId) return;
 
@@ -160,6 +173,9 @@ function GameComponent() {
             if (res.data.status === "active") {
               setStatusText("Match started! White to play");
             }
+          }
+          if (res.data.chat && Array.isArray(res.data.chat)) {
+            setChatMessages(res.data.chat);
           }
           if (playerColor === "w" && res.data.black?.name && res.data.black?.id !== "waiting-opponent") {
             setOpponentName(res.data.black.name);
@@ -361,6 +377,58 @@ function GameComponent() {
     setShowInviteModal(true);
   };
 
+  const handleSendChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const textToSend = chatInput.trim();
+    setChatInput("");
+
+    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsg: ChatMessage = {
+      id: `client-${Date.now()}`,
+      sender: myName,
+      text: textToSend,
+      time: nowStr
+    };
+
+    setChatMessages((prev) => [...prev, userMsg]);
+
+    if (mode === "ai") {
+      setTimeout(() => {
+        const aiReplies = [
+          "Good move!",
+          "Interesting tactic!",
+          "Good luck, have fun!",
+          "Nice play!",
+          "Well played!"
+        ];
+        const randomReply = aiReplies[Math.floor(Math.random() * aiReplies.length)];
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `ai-${Date.now()}`,
+            sender: "GM_Arjun_Mehta (AI)",
+            text: randomReply,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+      }, 1000);
+    } else if (gameId) {
+      try {
+        const res = await api.post(`/games/${gameId}/chat`, {
+          text: textToSend,
+          sender: myName
+        });
+        if (res.data?.chat) {
+          setChatMessages(res.data.chat);
+        }
+      } catch (err) {
+        console.error("Chat send error:", err);
+      }
+    }
+  };
+
   const handleResign = async () => {
     setGameStatus("finished");
     setStatusText("You resigned.");
@@ -499,15 +567,29 @@ function GameComponent() {
             </div>
           </div>
 
-          <div className="card p-3">
+          <div className="card p-3 flex flex-col h-[200px]">
             <div className="label-eyebrow mb-2">Live Chat</div>
-            <div className="text-[13px] text-text-muted italic mb-2">
-              {opponentName}: Good luck, have fun!
+            <div ref={chatScrollRef} className="flex-1 overflow-y-auto space-y-1.5 mb-2 pr-1 text-[12px]">
+              {chatMessages.map((msg) => (
+                <div key={msg.id} className="leading-tight">
+                  <span className="font-semibold text-accent">{msg.sender}: </span>
+                  <span className="text-text-strong">{msg.text}</span>
+                  <span className="text-[10px] text-text-muted ml-1.5">({msg.time})</span>
+                </div>
+              ))}
             </div>
-            <input
-              placeholder="Send a message..."
-              className="w-full bg-bg-input border border-border rounded-sm px-2.5 py-1.5 text-[13px] text-text-strong outline-none focus:border-accent"
-            />
+            <form onSubmit={handleSendChat} className="flex gap-1.5">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Send a message..."
+                className="flex-1 bg-bg-input border border-border rounded-sm px-2.5 py-1.5 text-[12px] text-text-strong outline-none focus:border-accent"
+              />
+              <button type="submit" className="btn-primary text-[12px] px-3 py-1.5 shrink-0">
+                Send
+              </button>
+            </form>
           </div>
         </div>
       </div>

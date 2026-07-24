@@ -1,5 +1,7 @@
 import uuid
 import random
+import json
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -144,6 +146,13 @@ def get_game(game_id: str, db: Session = Depends(get_db)):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
+    chat_messages = []
+    if game.chat:
+        try:
+            chat_messages = json.loads(game.chat)
+        except Exception:
+            chat_messages = []
+
     return {
         "id": game.id,
         "tournament_id": game.tournament_id,
@@ -163,6 +172,7 @@ def get_game(game_id: str, db: Session = Depends(get_db)):
         "fen": game.fen,
         "moves": game.moves.split(",") if game.moves else [],
         "status": game.status,
+        "chat": chat_messages,
         "created_at": game.created_at
     }
 

@@ -13,6 +13,7 @@ class Game(Base):
     fen = Column(String(255), default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     moves = Column(Text, default="")  # Comma-separated list of moves (e.g. "e4,e5")
     status = Column(String(50), default="active")  # "active", "white_won", "black_won", "draw"
+    chat = Column(Text, default="")  # JSON or text formatted chat messages
     created_at = Column(DateTime, default=func.now())
 
     # Relationships
