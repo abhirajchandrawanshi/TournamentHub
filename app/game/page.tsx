@@ -237,26 +237,41 @@ function GameComponent() {
       try {
         const res = await api.get(`/games/${gameId}`);
         if (res.data) {
+          // Sync FEN & moves if changed
           if (res.data.fen && res.data.fen !== game.fen()) {
             const updatedChess = new Chess(res.data.fen);
             setGame(updatedChess);
             setFen(res.data.fen);
             setMoveHistory(res.data.moves || []);
           }
+
+          // Status transition (waiting -> active means opponent joined)
           if (res.data.status && res.data.status !== gameStatus) {
             setGameStatus(res.data.status);
             if (res.data.status === "active") {
-              setStatusText(`Match started! ${res.data.moves?.length ? "Game in progress" : "White to play"}`);
+              setStatusText(`⚔️ Match started! ${res.data.moves?.length ? "Game in progress" : "White to play"}`);
+              setWhiteClock(300);
+              setBlackClock(300);
+            } else if (res.data.status === "white_won") {
+              setStatusText("White wins!");
+            } else if (res.data.status === "black_won") {
+              setStatusText("Black wins!");
+            } else if (res.data.status === "draw") {
+              setStatusText("Game drawn!");
             }
           }
+
+          // Sync chat
           if (res.data.chat && Array.isArray(res.data.chat)) {
             setChatMessages(res.data.chat);
           }
-          if (playerColor === "w" && res.data.black?.name && res.data.black?.id !== "waiting-opponent") {
-            setOpponentName(res.data.black.name);
+
+          // Update opponent info (handles both initial load and friend joining)
+          if (playerColor === "w" && res.data.black?.id && res.data.black.id !== "waiting-opponent") {
+            setOpponentName(res.data.black.name || "Opponent");
             setOpponentRating(res.data.black.rating || 1500);
-          } else if (playerColor === "b" && res.data.white?.name) {
-            setOpponentName(res.data.white.name);
+          } else if (playerColor === "b" && res.data.white?.id && res.data.white.id !== "waiting-opponent") {
+            setOpponentName(res.data.white.name || "Opponent");
             setOpponentRating(res.data.white.rating || 1500);
           }
         }
@@ -672,12 +687,13 @@ function GameComponent() {
             </button>
           </div>
 
+          {/* Top row = opponent (their clock, their color) */}
           <PlayerRow
-            name={playerColor === "w" ? opponentName : myName}
-            rating={playerColor === "w" ? opponentRating : myRating}
-            color="b"
-            clock={formatTime(blackClock)}
-            active={game.turn() === "b" && gameStatus === "active" && !showOnlineOverlay}
+            name={opponentName}
+            rating={opponentRating}
+            color={playerColor === "w" ? "b" : "w"}
+            clock={formatTime(playerColor === "w" ? blackClock : whiteClock)}
+            active={game.turn() !== playerColor && gameStatus === "active" && !showOnlineOverlay}
           />
 
           {/* Board wrapper with overlay */}
@@ -754,12 +770,13 @@ function GameComponent() {
             )}
           </div>
 
+          {/* Bottom row = you (your clock, your color) */}
           <PlayerRow
-            name={playerColor === "w" ? myName : opponentName}
-            rating={playerColor === "w" ? myRating : opponentRating}
-            color="w"
-            clock={formatTime(whiteClock)}
-            active={game.turn() === "w" && gameStatus === "active" && !showOnlineOverlay}
+            name={myName}
+            rating={myRating}
+            color={playerColor === "w" ? "w" : "b"}
+            clock={formatTime(playerColor === "w" ? whiteClock : blackClock)}
+            active={game.turn() === playerColor && gameStatus === "active" && !showOnlineOverlay}
           />
 
           <div className="flex gap-2 mt-1 w-full">
@@ -789,10 +806,16 @@ function GameComponent() {
             <div className="text-[13px] text-text font-medium">
               {statusText}
             </div>
-            {mode === "online" && onlinePhase === "connected" && (
+            {(mode === "online" || mode === "friend") && gameStatus !== "waiting" && (
               <div className="mt-2 text-[12px] text-accent font-medium flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                Connected — You are playing as {playerColor === "w" ? "⬜ White" : "⬛ Black"}
+                You are playing as {playerColor === "w" ? "⬜ White" : "⬛ Black"}
+              </div>
+            )}
+            {mode === "friend" && gameStatus === "waiting" && (
+              <div className="mt-2 text-[12px] text-yellow-400 font-medium flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                Waiting for friend to join via invite link...
               </div>
             )}
           </div>
