@@ -4,10 +4,16 @@ import hmac
 import hashlib
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.database import get_db
-from app.dependencies.auth import get_optional_user
-from app.models.user import User
-from app.models.transaction import Transaction
+try:
+    from app.database import get_db
+    from app.dependencies.auth import get_optional_user
+    from app.models.user import User
+    from app.models.transaction import Transaction
+except ImportError:
+    from backend.app.database import get_db
+    from backend.app.dependencies.auth import get_optional_user
+    from backend.app.models.user import User
+    from backend.app.models.transaction import Transaction
 
 router = APIRouter(prefix="/wallet", tags=["wallet"])
 

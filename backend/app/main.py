@@ -2,8 +2,12 @@ import firebase_admin
 from firebase_admin import credentials
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.config import settings
-from app.routers import auth, tournament, game, leaderboard, wallet
+try:
+    from app.config import settings
+    from app.routers import auth, tournament, game, leaderboard, wallet
+except ImportError:
+    from backend.app.config import settings
+    from backend.app.routers import auth, tournament, game, leaderboard, wallet
 import json
 
 try:
