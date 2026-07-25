@@ -11,30 +11,37 @@ from app.models.game import Game
 
 router = APIRouter(prefix="/games", tags=["games"])
 
+def ensure_system_users(db: Session):
+    system_users = [
+        ("waiting-opponent", "Searching for Opponent...", "waiting@chessarena.ai", "waiting_opponent", 1500),
+        ("ai-opponent", "GM_Arjun_Mehta (AI)", "arjun@chessarena.ai", "GM_Arjun_Mehta", 2400)
+    ]
+    for sys_id, sys_name, sys_email, sys_username, sys_rating in system_users:
+        u = db.query(User).filter(User.id == sys_id).first()
+        if not u:
+            try:
+                u = User(
+                    id=sys_id,
+                    name=sys_name,
+                    email=sys_email,
+                    username=sys_username,
+                    rating=sys_rating
+                )
+                db.add(u)
+                db.commit()
+            except Exception:
+                db.rollback()
+
 @router.post("")
 def create_game(
     payload: dict,
     current_user: User = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
-    opponent_id = payload.get("opponent_id")
+    ensure_system_users(db)
+    opponent_id = payload.get("opponent_id") or "ai-opponent"
     clock_control = payload.get("clock_control", "10+0")
     tournament_id = payload.get("tournament_id")
-    
-    if not opponent_id:
-        opponent_id = "ai-opponent"
-        opponent = db.query(User).filter(User.id == opponent_id).first()
-        if not opponent:
-            opponent = User(
-                id="ai-opponent",
-                name="GM_Arjun_Mehta (AI)",
-                email="arjun@chessarena.ai",
-                username="GM_Arjun_Mehta",
-                rating=2400
-            )
-            db.add(opponent)
-            db.commit()
-            db.refresh(opponent)
 
     game_id = f"game-{uuid.uuid4().hex[:12]}"
     
@@ -71,6 +78,7 @@ def create_invite_game(
     current_user: User = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
+    ensure_system_users(db)
     game_id = f"invite-{uuid.uuid4().hex[:12]}"
     new_game = Game(
         id=game_id,
@@ -90,11 +98,21 @@ def matchmake_game(
     current_user: User = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
-    # Find waiting game
+    ensure_system_users(db)
+
+    # 1. Check if current user already has an active or waiting game
+    existing_my_waiting = db.query(Game).filter(
+        Game.status == "waiting",
+        Game.white_player_id == current_user.id
+    ).first()
+    if existing_my_waiting:
+        return {"id": existing_my_waiting.id, "status": "waiting", "color": "w"}
+
+    # 2. Find any waiting game created by another player
     waiting_game = db.query(Game).filter(
         Game.status == "waiting",
         Game.white_player_id != current_user.id
-    ).first()
+    ).order_by(Game.created_at.asc()).first()
 
     if waiting_game:
         waiting_game.black_player_id = current_user.id
@@ -103,7 +121,7 @@ def matchmake_game(
         db.refresh(waiting_game)
         return {"id": waiting_game.id, "status": "active", "color": "b"}
 
-    # Otherwise create waiting game
+    # 3. Otherwise create a new waiting game
     game_id = f"game-{uuid.uuid4().hex[:12]}"
     new_game = Game(
         id=game_id,
@@ -124,6 +142,7 @@ def join_existing_game(
     current_user: User = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
+    ensure_system_users(db)
     game = db.query(Game).filter(Game.id == game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
@@ -132,7 +151,7 @@ def join_existing_game(
         return {"id": game.id, "color": "w", "status": game.status}
     elif game.black_player_id == current_user.id:
         return {"id": game.id, "color": "b", "status": game.status}
-    elif game.black_player_id == "waiting-opponent":
+    elif game.black_player_id == "waiting-opponent" and game.white_player_id != current_user.id:
         game.black_player_id = current_user.id
         game.status = "active"
         db.commit()

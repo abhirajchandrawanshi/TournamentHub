@@ -177,7 +177,7 @@ function GameComponent() {
           if (res.data.status && res.data.status !== gameStatus) {
             setGameStatus(res.data.status);
             if (res.data.status === "active") {
-              setStatusText("Match started! White to play");
+              setStatusText(`Match started! ${res.data.moves?.length ? "Game in progress" : "White to play"}`);
             }
           }
           if (res.data.chat && Array.isArray(res.data.chat)) {
@@ -185,16 +185,16 @@ function GameComponent() {
           }
           if (playerColor === "w" && res.data.black?.name && res.data.black?.id !== "waiting-opponent") {
             setOpponentName(res.data.black.name);
-            setOpponentRating(res.data.black.rating);
+            setOpponentRating(res.data.black.rating || 1500);
           } else if (playerColor === "b" && res.data.white?.name) {
             setOpponentName(res.data.white.name);
-            setOpponentRating(res.data.white.rating);
+            setOpponentRating(res.data.white.rating || 1500);
           }
         }
       } catch (err) {
         console.error("Live game sync err:", err);
       }
-    }, 1500);
+    }, 1200);
 
     return () => clearInterval(interval);
   }, [game, gameId, mode, gameStatus, playerColor]);
