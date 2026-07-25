@@ -100,33 +100,50 @@ def matchmake_game(
 ):
     ensure_system_users(db)
 
-    # 1. Check if current user already has an active or waiting game
+    # 1. Check if current user already has a waiting game (could be white or black)
     existing_my_waiting = db.query(Game).filter(
         Game.status == "waiting",
-        Game.white_player_id == current_user.id
+        (Game.white_player_id == current_user.id) | (Game.black_player_id == current_user.id)
     ).first()
     if existing_my_waiting:
-        return {"id": existing_my_waiting.id, "status": "waiting", "color": "w"}
+        color = "w" if existing_my_waiting.white_player_id == current_user.id else "b"
+        return {"id": existing_my_waiting.id, "status": "waiting", "color": color}
 
     # 2. Find any waiting game created by another player
     waiting_game = db.query(Game).filter(
         Game.status == "waiting",
-        Game.white_player_id != current_user.id
+        Game.white_player_id != current_user.id,
+        Game.black_player_id != current_user.id
     ).order_by(Game.created_at.asc()).first()
 
     if waiting_game:
-        waiting_game.black_player_id = current_user.id
+        # Fill the "waiting-opponent" slot
+        if waiting_game.white_player_id == "waiting-opponent":
+            waiting_game.white_player_id = current_user.id
+            color = "w"
+        else:
+            waiting_game.black_player_id = current_user.id
+            color = "b"
         waiting_game.status = "active"
         db.commit()
         db.refresh(waiting_game)
-        return {"id": waiting_game.id, "status": "active", "color": "b"}
+        return {"id": waiting_game.id, "status": "active", "color": color}
 
-    # 3. Otherwise create a new waiting game
+    # 3. Create new waiting game with RANDOM color assignment
     game_id = f"game-{uuid.uuid4().hex[:12]}"
+    if random.choice([True, False]):
+        white_id = current_user.id
+        black_id = "waiting-opponent"
+        color = "w"
+    else:
+        white_id = "waiting-opponent"
+        black_id = current_user.id
+        color = "b"
+
     new_game = Game(
         id=game_id,
-        white_player_id=current_user.id,
-        black_player_id="waiting-opponent",
+        white_player_id=white_id,
+        black_player_id=black_id,
         clock_control="5+0",
         fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         moves="",
@@ -134,7 +151,7 @@ def matchmake_game(
     )
     db.add(new_game)
     db.commit()
-    return {"id": new_game.id, "status": "waiting", "color": "w"}
+    return {"id": new_game.id, "status": "waiting", "color": color}
 
 @router.post("/{game_id}/join")
 def join_existing_game(
