@@ -68,7 +68,8 @@ def create_razorpay_order(
             db.rollback()
             user = current_user
 
-    order_id = f"order_{uuid.uuid4().hex[:14]}"
+    order_id = None
+    is_official = False
 
     try:
         import razorpay
@@ -76,19 +77,21 @@ def create_razorpay_order(
         rzp_order = client.order.create({
             "amount": int(amount * 100),
             "currency": "INR",
-            "receipt": f"rcpt_{uuid.uuid4().hex[:10]}",
-            "payment_capture": 1
+            "receipt": f"rcpt_{uuid.uuid4().hex[:10]}"
         })
         if rzp_order and "id" in rzp_order:
             order_id = rzp_order["id"]
+            is_official = True
     except Exception as e:
         print(f"Razorpay SDK Order note: {e}")
+
+    stored_id = order_id or f"order_local_{uuid.uuid4().hex[:12]}"
 
     try:
         txn = Transaction(
             id=f"txn-{uuid.uuid4().hex[:10]}",
             user_id=user.id,
-            razorpay_order_id=order_id,
+            razorpay_order_id=stored_id,
             amount=amount,
             type="deposit",
             status="pending"
@@ -100,7 +103,7 @@ def create_razorpay_order(
         db.rollback()
 
     return {
-        "order_id": order_id,
+        "order_id": order_id if is_official else None,
         "amount": int(amount * 100),
         "currency": "INR",
         "key_id": RAZORPAY_KEY_ID

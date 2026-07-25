@@ -151,7 +151,7 @@ export default function WalletPage() {
       },
     };
 
-    if (orderData?.order_id && String(orderData.order_id).startsWith("order_")) {
+    if (orderData?.order_id) {
       options.order_id = orderData.order_id;
     }
 
