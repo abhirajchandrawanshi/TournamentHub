@@ -10,6 +10,7 @@ interface Tournament {
   clock: string;
   type: string;
   status: string;
+  entry_fee?: number;
   players: number;
   starts: string;
   live: boolean;
@@ -78,7 +79,12 @@ export default function TournamentPage() {
                     href={`/tournament/${t.id}`}
                     className="flex items-center justify-between px-4 py-3 text-[13px] hover:bg-white/[0.03]"
                   >
-                    <span className="text-text-strong truncate pr-2">{t.name}</span>
+                    <div className="flex items-center gap-2 truncate pr-2">
+                      <span className="text-text-strong truncate">{t.name}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${t.entry_fee && t.entry_fee > 0 ? "bg-accent/10 text-accent font-semibold" : "bg-bg-input text-text-muted"}`}>
+                        {t.entry_fee && t.entry_fee > 0 ? `₹${t.entry_fee} Entry` : "Free"}
+                      </span>
+                    </div>
                     <span className="flex items-center gap-4 shrink-0 text-text-muted">
                       <span className="font-mono">{t.clock}</span>
                       <span className="hidden sm:inline">{t.players} players</span>

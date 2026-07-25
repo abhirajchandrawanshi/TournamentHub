@@ -20,6 +20,7 @@ interface TournamentDetail {
   clock: string;
   type: string;
   status: string;
+  entry_fee?: number;
   creator_id: string;
   participants: Participant[];
 }
@@ -83,8 +84,11 @@ export default function TournamentDetailPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2 mb-5">
           <div>
             <h1 className="text-[20px] font-semibold text-text-strong">{tournament?.name || tournamentId}</h1>
-            <p className="text-[13px] text-text-muted mt-1">
-              {tournament?.type || "Arena"} &middot; {tournament?.clock || "3+0"} &middot; {tournament?.participants?.length || 0} players
+            <p className="text-[13px] text-text-muted mt-1 flex items-center gap-2">
+              <span>{tournament?.type || "Arena"} &middot; {tournament?.clock || "3+0"} &middot; {tournament?.participants?.length || 0} players</span>
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${tournament?.entry_fee && tournament.entry_fee > 0 ? "bg-accent/10 text-accent" : "bg-bg-input text-text-muted"}`}>
+                {tournament?.entry_fee && tournament.entry_fee > 0 ? `₹${tournament.entry_fee} Entry Fee` : "Free Entry"}
+              </span>
             </p>
           </div>
           <button
@@ -92,13 +96,16 @@ export default function TournamentDetailPage() {
             disabled={joining}
             className="btn-primary text-[13px] disabled:opacity-60"
           >
-            {joining ? "Joining..." : "Join tournament"}
+            {joining ? "Joining..." : tournament?.entry_fee && tournament.entry_fee > 0 ? `Join (₹${tournament.entry_fee})` : "Join tournament"}
           </button>
         </div>
 
         {message && (
-          <div className="mb-4 text-[12px] text-accent bg-accent/10 border border-accent rounded-sm px-3 py-2">
-            {message}
+          <div className="mb-4 text-[12px] p-3 rounded-sm border bg-accent/10 border-accent text-accent flex items-center justify-between">
+            <span>{message}</span>
+            <Link href="/wallet" className="btn-outline text-[11px] !py-1 !px-2 shrink-0 ml-2">
+              Go to Wallet »
+            </Link>
           </div>
         )}
 

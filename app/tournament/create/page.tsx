@@ -9,6 +9,7 @@ export default function CreateTournamentPage() {
   const [name, setName] = useState("");
   const [clock, setClock] = useState("3+0");
   const [type, setType] = useState("Arena");
+  const [entryFee, setEntryFee] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -21,7 +22,7 @@ export default function CreateTournamentPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/tournaments", { name, clock, type });
+      const res = await api.post("/tournaments", { name, clock, type, entry_fee: entryFee });
       if (res.data?.id) {
         router.push(`/tournament/${res.data.id}`);
       } else {
@@ -91,6 +92,22 @@ export default function CreateTournamentPage() {
               <option value="Arena">Arena</option>
               <option value="Swiss">Swiss</option>
             </select>
+          </div>
+
+          <div>
+            <label className="label-eyebrow block mb-1" htmlFor="entryFee">
+              Entry Fee (₹)
+            </label>
+            <input
+              id="entryFee"
+              type="number"
+              min="0"
+              value={entryFee}
+              onChange={(e) => setEntryFee(Number(e.target.value))}
+              placeholder="0 for Free Entry"
+              className="w-full bg-bg-input border border-border rounded-sm px-3 py-2 text-[14px] text-text-strong outline-none focus:border-accent"
+            />
+            <span className="text-[11px] text-text-muted mt-1 block">Set 0 for Free Entry, or any custom amount (e.g. ₹50, ₹100).</span>
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full mt-2 disabled:opacity-60">

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, func
+from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -10,6 +10,7 @@ class Tournament(Base):
     clock = Column(String(50), nullable=False)   # e.g. "3+0", "10+0"
     type = Column(String(50), nullable=False)    # "Arena" or "Swiss"
     status = Column(String(50), default="created")  # "created", "active", "completed"
+    entry_fee = Column(Float, default=0.0)       # Entry fee in INR (0 = free)
     creator_id = Column(String(128), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=func.now())
 
