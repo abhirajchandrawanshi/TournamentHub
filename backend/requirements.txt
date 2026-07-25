@@ -4,3 +4,4 @@ psycopg2-binary
 firebase-admin
 pydantic-settings
 alembic
+razorpay

@@ -25,7 +25,7 @@ declare global {
 export default function WalletPage() {
   const [balance, setBalance] = useState<number>(0.0);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
-  const [razorpayKey, setRazorpayKey] = useState<string>("rzp_test_TournamentHub2026");
+  const [razorpayKey, setRazorpayKey] = useState<string>("rzp_test_THdBrx27znX9M7");
   const [loading, setLoading] = useState<boolean>(true);
   const [userName, setUserName] = useState<string>("User");
   const [userEmail, setUserEmail] = useState<string>("user@chessarena.ai");
