@@ -3,7 +3,7 @@ from firebase_admin import credentials
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import auth, tournament, game, leaderboard
+from app.routers import auth, tournament, game, leaderboard, wallet
 import json
 
 try:
@@ -39,3 +39,4 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(tournament.router, prefix="/api")
 app.include_router(game.router, prefix="/api")
 app.include_router(leaderboard.router, prefix="/api")
+app.include_router(wallet.router, prefix="/api")

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, func
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, func
 from app.database import Base
 
 class User(Base):
@@ -11,5 +11,6 @@ class User(Base):
     avatar = Column(String(500), nullable=True)
     rating = Column(Integer, default=1200)       # Chess ELO
     role = Column(String(20), default="player")  # player, organizer, admin
+    wallet_balance = Column(Float, default=0.0)  # INR balance
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=func.now())

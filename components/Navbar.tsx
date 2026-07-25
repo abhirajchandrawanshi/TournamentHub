@@ -13,6 +13,7 @@ const navItems = [
   { name: "Tournaments", href: "/tournament" },
   { name: "Leaderboard", href: "/leaderboard" },
   { name: "Learn", href: "/learn" },
+  { name: "Wallet", href: "/wallet" },
 ];
 
 export default function Navbar() {
@@ -120,6 +121,13 @@ export default function Navbar() {
                   >
                     <UserIcon size={14} />
                     My Profile
+                  </Link>
+                  <Link
+                    href="/wallet"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-accent font-semibold hover:bg-white/[0.05]"
+                  >
+                    💳 Wallet & Payments
                   </Link>
                   <button
                     onClick={handleLogout}
