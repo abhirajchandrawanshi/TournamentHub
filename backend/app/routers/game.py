@@ -159,6 +159,47 @@ def join_existing_game(
     
     return {"id": game.id, "color": "spectator", "status": game.status}
 
+@router.get("/user/history")
+def get_user_game_history(
+    current_user: User = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    if not current_user:
+        return []
+
+    games = db.query(Game).filter(
+        (Game.white_player_id == current_user.id) | (Game.black_player_id == current_user.id)
+    ).order_by(Game.created_at.desc()).limit(20).all()
+
+    history = []
+    for g in games:
+        is_white = g.white_player_id == current_user.id
+        opponent = g.black_player if is_white else g.white_player
+        opp_name = opponent.name if opponent else ("GM_Arjun_Mehta (AI)" if (g.black_player_id == "ai-opponent" or g.white_player_id == "ai-opponent") else "Opponent")
+
+        result = "Draw"
+        if g.status == "white_won":
+            result = "Victory" if is_white else "Defeat"
+        elif g.status == "black_won":
+            result = "Defeat" if is_white else "Victory"
+        elif g.status == "active":
+            result = "In Progress"
+
+        moves_arr = g.moves.split(",") if g.moves else []
+
+        history.append({
+            "id": g.id,
+            "opponent": opp_name,
+            "color": "White" if is_white else "Black",
+            "result": result,
+            "status": g.status,
+            "clock": g.clock_control,
+            "moves_count": len(moves_arr),
+            "created_at": g.created_at.strftime("%Y-%m-%d %H:%M") if g.created_at else "Recently"
+        })
+
+    return history
+
 @router.get("/{game_id}")
 def get_game(game_id: str, db: Session = Depends(get_db)):
     game = db.query(Game).filter(Game.id == game_id).first()
@@ -334,44 +375,4 @@ def game_timeout(
 
     db.commit()
     return {"id": game.id, "status": game.status}
-
-@router.get("/user/history")
-def get_user_game_history(
-    current_user: User = Depends(get_optional_user),
-    db: Session = Depends(get_db)
-):
-    if not current_user:
-        return []
-
-    games = db.query(Game).filter(
-        (Game.white_player_id == current_user.id) | (Game.black_player_id == current_user.id)
-    ).order_by(Game.created_at.desc()).limit(20).all()
-
-    history = []
-    for g in games:
-        is_white = g.white_player_id == current_user.id
-        opponent = g.black_player if is_white else g.white_player
-        opp_name = opponent.name if opponent else ("GM_Arjun_Mehta (AI)" if (g.black_player_id == "ai-opponent" or g.white_player_id == "ai-opponent") else "Opponent")
-
-        result = "Draw"
-        if g.status == "white_won":
-            result = "Victory" if is_white else "Defeat"
-        elif g.status == "black_won":
-            result = "Defeat" if is_white else "Victory"
-        elif g.status == "active":
-            result = "In Progress"
-
-        moves_arr = g.moves.split(",") if g.moves else []
-
-        history.append({
-            "id": g.id,
-            "opponent": opp_name,
-            "color": "White" if is_white else "Black",
-            "result": result,
-            "status": g.status,
-            "clock": g.clock_control,
-            "moves_count": len(moves_arr),
-            "created_at": g.created_at.strftime("%Y-%m-%d %H:%M") if g.created_at else "Recently"
-        })
-
-    return history
+

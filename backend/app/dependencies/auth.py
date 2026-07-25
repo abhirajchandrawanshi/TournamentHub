@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from firebase_admin import auth as firebase_auth
 from sqlalchemy.orm import Session
+import uuid
 from app.database import get_db
 from app.models.user import User
 
