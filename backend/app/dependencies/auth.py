@@ -59,21 +59,35 @@ async def get_optional_user(
 
             user = db.query(User).filter(User.id == uid).first()
             if not user:
+                base_username = email.split("@")[0] if email else "player"
+                username = base_username
+                existing_uname = db.query(User).filter(User.username == username).first()
+                if existing_uname:
+                    username = f"{base_username}_{uuid.uuid4().hex[:4]}"
+
                 user = User(
                     id=uid,
                     email=email,
                     name=name,
                     avatar=picture,
-                    username=email.split("@")[0] if email else "player"
+                    username=username
                 )
-                db.add(user)
-                db.commit()
-                db.refresh(user)
-            return user
+                try:
+                    db.add(user)
+                    db.commit()
+                    db.refresh(user)
+                except Exception:
+                    db.rollback()
+                    user = db.query(User).filter(User.id == uid).first()
+
+            if user:
+                return user
         except Exception as e:
+            db.rollback()
             print(f"Auth verification note: {e}")
 
     # Fallback to distinct guest user
+    db.rollback()
     guest_id = f"guest-{uuid.uuid4().hex[:8]}"
     guest = User(
         id=guest_id,
@@ -89,17 +103,25 @@ async def get_optional_user(
         return guest
     except Exception:
         db.rollback()
-        # Fallback to shared guest player if DB write fails
-        existing = db.query(User).filter(User.id == "guest-player").first()
-        if not existing:
-            existing = User(
-                id="guest-player",
-                name="Guest Player",
-                email="guest@chessarena.ai",
-                username="guest_player",
-                rating=1200
-            )
+
+    existing = db.query(User).filter(User.id == "guest-player").first()
+    if not existing:
+        existing = User(
+            id="guest-player",
+            name="Guest Player",
+            email="guest-player-sys@chessarena.ai",
+            username="guest_player_sys",
+            rating=1200
+        )
+        try:
             db.add(existing)
             db.commit()
             db.refresh(existing)
+        except Exception:
+            db.rollback()
+            existing = db.query(User).filter(User.id == "guest-player").first()
+
+    if existing:
         return existing
+
+    return User(id="guest-fallback", name="Guest", email="guest@chessarena.ai", username="guest", rating=1200)

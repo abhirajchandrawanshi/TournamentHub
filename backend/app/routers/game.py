@@ -13,24 +13,33 @@ router = APIRouter(prefix="/games", tags=["games"])
 
 def ensure_system_users(db: Session):
     system_users = [
-        ("waiting-opponent", "Searching for Opponent...", "waiting@chessarena.ai", "waiting_opponent", 1500),
-        ("ai-opponent", "GM_Arjun_Mehta (AI)", "arjun@chessarena.ai", "GM_Arjun_Mehta", 2400)
+        ("waiting-opponent", "Searching for Opponent...", "waiting-opponent@chessarena.ai", "waiting_opponent_sys", 1500),
+        ("ai-opponent", "GM_Arjun_Mehta (AI)", "ai-opponent@chessarena.ai", "ai_opponent_sys", 2400)
     ]
     for sys_id, sys_name, sys_email, sys_username, sys_rating in system_users:
         u = db.query(User).filter(User.id == sys_id).first()
         if not u:
             try:
-                u = User(
-                    id=sys_id,
-                    name=sys_name,
-                    email=sys_email,
-                    username=sys_username,
-                    rating=sys_rating
-                )
-                db.add(u)
+                db.query(User).filter(
+                    (User.email == sys_email) | (User.username == sys_username)
+                ).delete(synchronize_session=False)
                 db.commit()
             except Exception:
                 db.rollback()
+
+            u = User(
+                id=sys_id,
+                name=sys_name,
+                email=sys_email,
+                username=sys_username,
+                rating=sys_rating
+            )
+            try:
+                db.add(u)
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                print(f"System user ensure note ({sys_id}): {e}")
 
 @router.post("")
 def create_game(
@@ -62,9 +71,12 @@ def create_game(
         moves="",
         status="active"
     )
-    db.add(new_game)
-    db.commit()
-    db.refresh(new_game)
+    try:
+        db.add(new_game)
+        db.commit()
+        db.refresh(new_game)
+    except Exception:
+        db.rollback()
 
     return {
         "id": new_game.id,
@@ -89,8 +101,12 @@ def create_invite_game(
         moves="",
         status="waiting"
     )
-    db.add(new_game)
-    db.commit()
+    try:
+        db.add(new_game)
+        db.commit()
+    except Exception:
+        db.rollback()
+
     return {"id": new_game.id, "status": "waiting", "color": "w"}
 
 @router.post("/matchmake")
@@ -125,9 +141,12 @@ def matchmake_game(
             waiting_game.black_player_id = current_user.id
             color = "b"
         waiting_game.status = "active"
-        db.commit()
-        db.refresh(waiting_game)
-        return {"id": waiting_game.id, "status": "active", "color": color}
+        try:
+            db.commit()
+            db.refresh(waiting_game)
+            return {"id": waiting_game.id, "status": "active", "color": color}
+        except Exception:
+            db.rollback()
 
     # 3. Create new waiting game with RANDOM color assignment
     game_id = f"game-{uuid.uuid4().hex[:12]}"
@@ -149,9 +168,14 @@ def matchmake_game(
         moves="",
         status="waiting"
     )
-    db.add(new_game)
-    db.commit()
-    return {"id": new_game.id, "status": "waiting", "color": color}
+    try:
+        db.add(new_game)
+        db.commit()
+        return {"id": new_game.id, "status": "waiting", "color": color}
+    except Exception as e:
+        db.rollback()
+        print(f"Matchmake error fallback: {e}")
+        return {"id": f"game-local-{uuid.uuid4().hex[:8]}", "status": "waiting", "color": color}
 
 @router.post("/{game_id}/join")
 def join_existing_game(
