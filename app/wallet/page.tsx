@@ -100,7 +100,7 @@ export default function WalletPage() {
     } catch (err) {
       console.warn("Backend create_order note, preparing direct checkout:", err);
       orderData = {
-        order_id: `order_${Date.now()}`,
+        order_id: null,
         amount: Math.round(depositAmount * 100),
         currency: "INR",
         key_id: razorpayKey || "rzp_test_THdBrx27znX9M7"
