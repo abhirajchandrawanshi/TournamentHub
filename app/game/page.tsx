@@ -106,6 +106,12 @@ function GameComponent() {
   const [chatInput, setChatInput] = useState("");
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
   // Sync auth profile for myName
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {

@@ -250,3 +250,39 @@ def resign_game(
 
     db.commit()
     return {"id": game.id, "status": game.status}
+
+@router.post("/{game_id}/chat")
+def send_game_chat(
+    game_id: str,
+    payload: dict,
+    current_user: User = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    game = db.query(Game).filter(Game.id == game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    text = payload.get("text", "").strip()
+    chat_messages = []
+    if game.chat:
+        try:
+            chat_messages = json.loads(game.chat)
+        except Exception:
+            chat_messages = []
+
+    if not text:
+        return {"chat": chat_messages}
+
+    sender = payload.get("sender") or (current_user.name if current_user else "Player")
+
+    new_msg = {
+        "id": f"msg-{uuid.uuid4().hex[:8]}",
+        "sender": sender,
+        "text": text,
+        "time": datetime.now().strftime("%I:%M %p")
+    }
+    chat_messages.append(new_msg)
+    game.chat = json.dumps(chat_messages)
+    db.commit()
+
+    return {"chat": chat_messages}
