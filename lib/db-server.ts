@@ -1,120 +1,94 @@
-import { Pool } from "pg";
+import { neon } from "@neondatabase/serverless";
 
-let pool: Pool | null = null;
-
-export function getPool(): Pool {
-  if (!pool) {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-      throw new Error("DATABASE_URL environment variable is not set");
-    }
-    pool = new Pool({
-      connectionString,
-      ssl: connectionString.includes("neon") || connectionString.includes("supabase")
-        ? { rejectUnauthorized: false }
-        : undefined,
-      max: 5,
-      idleTimeoutMillis: 30000,
-    });
-  }
-  return pool;
+// Neon's HTTP driver — zero TCP connection overhead, instant queries
+function getSQL() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL not set");
+  return neon(url);
 }
 
-export async function ensureSystemUsers(pool: Pool) {
-  const systemUsers = [
-    { id: "waiting-opponent", name: "Searching for Opponent...", email: "waiting-opponent@chessarena.ai", username: "waiting_opponent_sys", rating: 1500 },
-    { id: "ai-opponent", name: "GM_Arjun_Mehta (AI)", email: "ai-opponent@chessarena.ai", username: "ai_opponent_sys", rating: 2400 },
-  ];
+// Cache flag so we only ensure system users once per cold start
+let systemUsersEnsured = false;
 
-  for (const u of systemUsers) {
-    try {
-      await pool.query(
-        `INSERT INTO users (id, name, email, username, rating)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (id) DO NOTHING`,
-        [u.id, u.name, u.email, u.username, u.rating]
-      );
-    } catch (e) {
-      // Ignore conflicts on email/username
+export async function ensureSystemUsers() {
+  if (systemUsersEnsured) return;
+  const sql = getSQL();
+  try {
+    await sql`
+      INSERT INTO users (id, name, email, username, rating)
+      VALUES 
+        ('waiting-opponent', 'Searching for Opponent...', 'waiting-opponent@chessarena.ai', 'waiting_opponent_sys', 1500),
+        ('ai-opponent', 'GM_Arjun_Mehta (AI)', 'ai-opponent@chessarena.ai', 'ai_opponent_sys', 2400)
+      ON CONFLICT (id) DO NOTHING
+    `;
+    systemUsersEnsured = true;
+  } catch (e) {
+    // If email/username conflicts, try individually with unique suffixes
+    for (const u of [
+      { id: "waiting-opponent", name: "Searching for Opponent...", rating: 1500 },
+      { id: "ai-opponent", name: "GM_Arjun_Mehta (AI)", rating: 2400 },
+    ]) {
       try {
-        const exists = await pool.query("SELECT id FROM users WHERE id = $1", [u.id]);
-        if (exists.rows.length === 0) {
-          // Try with unique email/username
-          const uniqueSuffix = Date.now().toString(36);
-          await pool.query(
-            `INSERT INTO users (id, name, email, username, rating)
-             VALUES ($1, $2, $3, $4, $5)
-             ON CONFLICT (id) DO NOTHING`,
-            [u.id, u.name, `${u.id}-${uniqueSuffix}@chessarena.ai`, `${u.id}_${uniqueSuffix}`, u.rating]
-          );
-        }
-      } catch (e2) {
-        console.error(`System user ensure error (${u.id}):`, e2);
-      }
+        const s = Date.now().toString(36);
+        await sql`
+          INSERT INTO users (id, name, email, username, rating)
+          VALUES (${u.id}, ${u.name}, ${u.id + '-' + s + '@chessarena.ai'}, ${u.id + '_' + s}, ${u.rating})
+          ON CONFLICT (id) DO NOTHING
+        `;
+      } catch {}
     }
+    systemUsersEnsured = true;
   }
 }
 
-export async function getUserFromAuth(authHeader: string | null, pool: Pool) {
+export async function getUserFromAuth(authHeader: string | null) {
+  const sql = getSQL();
+
   if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.slice(7);
     try {
-      // Decode Firebase JWT payload (base64url) to extract user info
+      const token = authHeader.slice(7);
       const payloadB64 = token.split(".")[1];
       if (payloadB64) {
-        const payload = JSON.parse(
-          Buffer.from(payloadB64.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()
-        );
+        const padded = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(padded));
         const uid = payload.user_id || payload.sub;
-        const email = payload.email || `${uid?.slice(0, 8)}@chessarena.ai`;
-        const name = payload.name || email.split("@")[0];
-
         if (uid) {
-          // Find or create user
-          let result = await pool.query("SELECT * FROM users WHERE id = $1", [uid]);
-          if (result.rows.length === 0) {
-            const username = email.split("@")[0] + "_" + uid.slice(0, 4);
-            try {
-              await pool.query(
-                `INSERT INTO users (id, name, email, username, rating)
-                 VALUES ($1, $2, $3, $4, 1200)
-                 ON CONFLICT (id) DO NOTHING`,
-                [uid, name, email, username]
-              );
-            } catch {
-              // email or username conflict — try with unique suffix
-              const suffix = Date.now().toString(36);
-              await pool.query(
-                `INSERT INTO users (id, name, email, username, rating)
-                 VALUES ($1, $2, $3, $4, 1200)
-                 ON CONFLICT (id) DO NOTHING`,
-                [uid, name, `${uid}@chessarena.ai`, `user_${suffix}`]
-              ).catch(() => {});
-            }
-            result = await pool.query("SELECT * FROM users WHERE id = $1", [uid]);
-          }
-          if (result.rows.length > 0) return result.rows[0];
+          const email = payload.email || `${uid.slice(0, 8)}@chessarena.ai`;
+          const name = payload.name || email.split("@")[0];
+          const username = email.split("@")[0] + "_" + uid.slice(0, 4);
+
+          // Single upsert + return in one query
+          const rows = await sql`
+            INSERT INTO users (id, name, email, username, rating)
+            VALUES (${uid}, ${name}, ${email}, ${username}, 1200)
+            ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+            RETURNING *
+          `;
+          if (rows.length > 0) return rows[0];
+
+          // Fallback: just select
+          const existing = await sql`SELECT * FROM users WHERE id = ${uid}`;
+          if (existing.length > 0) return existing[0];
         }
       }
     } catch (e) {
-      console.error("Token decode error:", e);
+      console.error("Auth decode:", e);
     }
   }
 
-  // Guest fallback
+  // Guest fallback — single query
   const guestId = `guest-${crypto.randomUUID().slice(0, 8)}`;
   try {
-    await pool.query(
-      `INSERT INTO users (id, name, email, username, rating)
-       VALUES ($1, $2, $3, $4, 1200)
-       ON CONFLICT (id) DO NOTHING`,
-      [guestId, `Guest_${guestId.slice(-4)}`, `${guestId}@chessarena.ai`, guestId]
-    );
-    const result = await pool.query("SELECT * FROM users WHERE id = $1", [guestId]);
-    if (result.rows.length > 0) return result.rows[0];
-  } catch {
-    // Final fallback
-  }
+    const rows = await sql`
+      INSERT INTO users (id, name, email, username, rating)
+      VALUES (${guestId}, ${"Guest_" + guestId.slice(-4)}, ${guestId + "@chessarena.ai"}, ${guestId}, 1200)
+      ON CONFLICT (id) DO NOTHING
+      RETURNING *
+    `;
+    if (rows.length > 0) return rows[0];
+  } catch {}
 
-  return { id: "guest-fallback", name: "Guest", email: "guest@chessarena.ai", username: "guest", rating: 1200 };
+  return { id: guestId, name: "Guest", email: "guest@chessarena.ai", username: "guest", rating: 1200 };
 }
+
+export { getSQL };

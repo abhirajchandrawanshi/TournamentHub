@@ -223,7 +223,7 @@ function GameComponent() {
       } catch (err) {
         console.error("Matchmake poll error:", err);
       }
-    }, 2000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [mode, onlinePhase, gameId, playerColor]);
@@ -263,7 +263,7 @@ function GameComponent() {
       } catch (err) {
         console.error("Live game sync err:", err);
       }
-    }, 1200);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, [game, gameId, mode, gameStatus, playerColor, onlinePhase]);
