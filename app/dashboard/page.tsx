@@ -27,6 +27,8 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [gameHistory, setGameHistory] = useState<any[]>([]);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setAuthUser(user);
@@ -38,8 +40,12 @@ export default function DashboardPage() {
             setEditName(res.data.user.name || user.displayName || "");
             setEditUsername(res.data.user.username || user.email?.split("@")[0] || "");
           }
+          const historyRes = await api.get("/games/user/history");
+          if (Array.isArray(historyRes.data)) {
+            setGameHistory(historyRes.data);
+          }
         } catch (err) {
-          console.error("Failed to load user profile:", err);
+          console.error("Failed to load user profile/history:", err);
         }
       }
       setLoading(false);
@@ -135,15 +141,42 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Recent games */}
+        {/* Recent games history */}
         <div className="card p-0 overflow-hidden">
           <div className="px-4 py-3 border-b border-border-soft flex items-center justify-between">
-            <h2 className="label-eyebrow">Recent games</h2>
-            <Link href="/game" className="text-[12px] text-blue hover:underline">Start game »</Link>
+            <h2 className="label-eyebrow">Recent Games & Match Replay History</h2>
+            <Link href="/game" className="text-[12px] text-blue hover:underline">Play New Game »</Link>
           </div>
-          <div className="p-6 text-center text-[13px] text-text-muted">
-            No games recorded yet. Start a new live game at <Link href="/game" className="text-accent font-semibold hover:underline">/game</Link>!
-          </div>
+          {gameHistory.length > 0 ? (
+            <div className="divide-y divide-border-soft">
+              {gameHistory.map((g) => (
+                <div key={g.id} className="flex items-center justify-between px-4 py-3 text-[13px] hover:bg-white/[0.02]">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[11px] px-2 py-0.5 rounded font-semibold ${g.result === "Victory" ? "bg-accent/20 text-accent" : g.result === "Defeat" ? "bg-danger/20 text-danger" : "bg-bg-input text-text-muted"}`}>
+                      {g.result}
+                    </span>
+                    <div>
+                      <span className="font-semibold text-text-strong">vs {g.opponent}</span>
+                      <span className="text-[11px] text-text-muted ml-2 font-mono">({g.color} &middot; {g.clock || "5+0"} &middot; {g.moves_count} moves)</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-text-muted font-mono">{g.created_at}</span>
+                    <Link
+                      href={`/game?gameId=${g.id}`}
+                      className="btn-outline text-[11px] px-2 py-1"
+                    >
+                      Replay Match 👁️
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-6 text-center text-[13px] text-text-muted">
+              No games recorded yet. Start a new live game at <Link href="/game" className="text-accent font-semibold hover:underline">/game</Link>!
+            </div>
+          )}
         </div>
       </div>
 

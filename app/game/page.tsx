@@ -91,7 +91,7 @@ function GameComponent() {
   const [whiteClock, setWhiteClock] = useState<number>(300);
   const [blackClock, setBlackClock] = useState<number>(300);
   const [gameId, setGameId] = useState<string | null>(queryGameId || null);
-  const [playerColor, setPlayerColor] = useState<"w" | "b">("w");
+  const [playerColor, setPlayerColor] = useState<"w" | "b" | "spectator">("w");
   const [opponentName, setOpponentName] = useState<string>("GM_Arjun_Mehta (AI)");
   const [opponentRating, setOpponentRating] = useState<number>(2400);
   const [myName, setMyName] = useState<string>("Player");
@@ -199,6 +199,8 @@ function GameComponent() {
     return () => clearInterval(interval);
   }, [game, gameId, mode, gameStatus, playerColor]);
 
+  const [replayStep, setReplayStep] = useState<number | null>(null);
+
   // Timer countdown
   useEffect(() => {
     if (gameStatus !== "active") return;
@@ -211,6 +213,40 @@ function GameComponent() {
     }, 1000);
     return () => clearInterval(interval);
   }, [game, gameStatus]);
+
+  // Timeout loss detection
+  useEffect(() => {
+    if (gameStatus !== "active") return;
+    if (whiteClock === 0) {
+      setGameStatus("finished");
+      setStatusText("Black wins on time!");
+      if (gameId) api.post(`/games/${gameId}/timeout`, { loser_color: "w" }).catch(() => {});
+    } else if (blackClock === 0) {
+      setGameStatus("finished");
+      setStatusText("White wins on time!");
+      if (gameId) api.post(`/games/${gameId}/timeout`, { loser_color: "b" }).catch(() => {});
+    }
+  }, [whiteClock, blackClock, gameStatus, gameId]);
+
+  const handleReplayStep = (step: "first" | "prev" | "next" | "last") => {
+    if (moveHistory.length === 0) return;
+    let currentIdx = replayStep !== null ? replayStep : moveHistory.length;
+    if (step === "first") currentIdx = 0;
+    if (step === "prev") currentIdx = Math.max(0, currentIdx - 1);
+    if (step === "next") currentIdx = Math.min(moveHistory.length, currentIdx + 1);
+    if (step === "last") currentIdx = moveHistory.length;
+
+    setReplayStep(currentIdx);
+
+    // Reconstruct FEN up to currentIdx
+    const tempEngine = new Chess();
+    for (let i = 0; i < currentIdx; i++) {
+      try {
+        tempEngine.move(moveHistory[i]);
+      } catch (e) {}
+    }
+    setFen(tempEngine.fen());
+  };
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -555,8 +591,11 @@ function GameComponent() {
           </div>
 
           <div className="card flex-1 overflow-hidden flex flex-col min-h-[220px]">
-            <div className="px-3 py-2 border-b border-border-soft label-eyebrow">Moves ({moveHistory.length})</div>
-            <div className="overflow-y-auto max-h-[260px] text-[13px]">
+            <div className="px-3 py-2 border-b border-border-soft label-eyebrow flex justify-between items-center">
+              <span>Moves ({moveHistory.length})</span>
+              {playerColor === "spectator" && <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded">👁️ Spectating</span>}
+            </div>
+            <div className="overflow-y-auto max-h-[200px] text-[13px] flex-1">
               {movePairs.length > 0 ? (
                 movePairs.map(([w, b], i) => (
                   <div key={i} className="grid grid-cols-[28px_1fr_1fr] px-3 py-1.5 odd:bg-white/[0.02]">
@@ -571,6 +610,15 @@ function GameComponent() {
                 </div>
               )}
             </div>
+            {/* Match Replay Stepper Controls */}
+            {moveHistory.length > 0 && (
+              <div className="p-2 border-t border-border-soft flex gap-1 bg-bg-input/40 justify-center">
+                <button onClick={() => handleReplayStep("first")} title="First move" className="btn-outline text-[11px] px-2 py-1">⏮ First</button>
+                <button onClick={() => handleReplayStep("prev")} title="Previous move" className="btn-outline text-[11px] px-2 py-1">◀ Prev</button>
+                <button onClick={() => handleReplayStep("next")} title="Next move" className="btn-outline text-[11px] px-2 py-1">▶ Next</button>
+                <button onClick={() => handleReplayStep("last")} title="Last move" className="btn-outline text-[11px] px-2 py-1">⏭ Live</button>
+              </div>
+            )}
           </div>
 
           <div className="card p-3 flex flex-col h-[200px]">
