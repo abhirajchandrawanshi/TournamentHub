@@ -96,23 +96,24 @@ export default function WalletPage() {
       const order = res.data;
 
       const options: any = {
-        key: order.key_id || razorpayKey,
+        key: order.key_id || razorpayKey || "rzp_test_THdBrx27znX9M7",
         amount: order.amount,
         currency: order.currency || "INR",
         name: "ChessArena Wallet Deposit",
         description: `Add ₹${depositAmount} to your ChessArena wallet balance`,
+        order_id: order.order_id,
         handler: async function (response: any) {
           try {
             const verifyRes = await api.post("/wallet/verify_payment", {
               razorpay_order_id: response.razorpay_order_id || order.order_id,
-              razorpay_payment_id: response.razorpay_payment_id || `pay_${Date.now()}`,
-              razorpay_signature: response.razorpay_signature || "simulated_sig",
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
               amount: depositAmount,
             });
 
             if (verifyRes.data?.balance !== undefined) {
               setBalance(verifyRes.data.balance);
-              setToast({ type: "success", msg: `Payment Verified! ₹${depositAmount} added to your wallet.` });
+              setToast({ type: "success", msg: `Payment Successful! ₹${depositAmount} added to your wallet.` });
               setShowAddModal(false);
               fetchWalletData();
             }
@@ -133,55 +134,21 @@ export default function WalletPage() {
         },
       };
 
-      if (order.order_id && order.order_id.startsWith("order_rzp")) {
-        options.order_id = order.order_id;
-      }
-
       if (typeof window !== "undefined" && window.Razorpay) {
         const rzp = new window.Razorpay(options);
         rzp.on("payment.failed", function (resp: any) {
-          console.error("Payment failed note:", resp);
-          setToast({ type: "error", msg: resp.error?.description || "Payment failed or cancelled." });
+          console.error("Razorpay Payment Failed:", resp);
+          setToast({ type: "error", msg: resp.error?.description || "Payment was cancelled or failed." });
           setIsProcessing(false);
         });
         rzp.open();
       } else {
-        // Fallback instant credit if popup is blocked
-        const verifyRes = await api.post("/wallet/verify_payment", {
-          razorpay_order_id: order.order_id,
-          razorpay_payment_id: `pay_simulated_${Date.now()}`,
-          razorpay_signature: "simulated_sig",
-          amount: depositAmount,
-        });
-        if (verifyRes.data?.balance !== undefined) {
-          setBalance(verifyRes.data.balance);
-          setToast({ type: "success", msg: `₹${depositAmount} added to your wallet balance!` });
-          setShowAddModal(false);
-          fetchWalletData();
-        }
+        setToast({ type: "error", msg: "Razorpay SDK could not be loaded. Please check your internet connection." });
+        setIsProcessing(false);
       }
     } catch (e: any) {
-      console.error("Error initiating order, executing fail-safe deposit:", e);
-      try {
-        const verifyRes = await api.post("/wallet/verify_payment", {
-          razorpay_order_id: `order_fallback_${Date.now()}`,
-          razorpay_payment_id: `pay_fallback_${Date.now()}`,
-          razorpay_signature: "simulated_sig",
-          amount: depositAmount,
-        });
-        if (verifyRes.data?.balance !== undefined) {
-          setBalance(verifyRes.data.balance);
-          setToast({ type: "success", msg: `₹${depositAmount} added to your wallet balance!` });
-          setShowAddModal(false);
-          fetchWalletData();
-          return;
-        }
-      } catch (fallbackErr) {
-        setBalance((prev) => prev + depositAmount);
-        setToast({ type: "success", msg: `₹${depositAmount} added to your wallet balance!` });
-        setShowAddModal(false);
-      }
-    } finally {
+      console.error("Error creating Razorpay order:", e);
+      setToast({ type: "error", msg: e?.response?.data?.detail || "Could not initiate Razorpay payment order." });
       setIsProcessing(false);
     }
   };
